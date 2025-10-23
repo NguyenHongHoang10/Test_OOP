@@ -9,7 +9,10 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ListView;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class MenuPane extends VBox {
@@ -19,6 +22,11 @@ public class MenuPane extends VBox {
 
     // Thêm ô nhập tên người chơi (player name input)
     private final TextField nameField;
+
+    // Quản lý và UI cho bảng xếp hạng Top 10
+    private HighScoreManager highScoreManager;
+    private ListView<String> leaderboardList;       // danh sách Top 10
+    private Label leaderboardTitle;                 // tiêu đề "Top 10 High Scores"
 
     public MenuPane(Runnable startCallback, Runnable continueCallback, Runnable exitCallback) {
         super(12);
@@ -66,6 +74,17 @@ public class MenuPane extends VBox {
         });
     }
 
+    // Thêm Constructor mới: truyền HighScoreManager để hiển thị Top 10
+    public MenuPane(HighScoreManager highScoreManager,
+                    Consumer<String> startCallbackWithName,
+                    Runnable continueCallback,
+                    Runnable exitCallback) {
+        this(startCallbackWithName, continueCallback, exitCallback);
+        this.highScoreManager = highScoreManager;
+        createLeaderboardUI();   // Tạo UI "Top 10 High Scores"
+        refreshHighScores();     // Nạp dữ liệu ban đầu
+    }
+
     // Thêm phần lấy tên người chơi từ ô nhập
     public String getPlayerName() {
         String s = nameField.getText();
@@ -73,4 +92,40 @@ public class MenuPane extends VBox {
         return s.trim();
     }
 
+    // Khởi tạo khu vực Leaderboard (Top 10)
+    private void createLeaderboardUI() {
+        leaderboardTitle = new Label("Top 10 High Scores");
+        leaderboardTitle.setFont(Font.font(20));
+        leaderboardTitle.setTextFill(Color.WHITE);
+
+        leaderboardList = new ListView<>();
+        leaderboardList.setPrefSize(360, 260); // kích thước hiển thị
+        leaderboardList.setFocusTraversable(false); // tránh chiếm focus phím
+
+        // chèn vào cuối menu
+        getChildren().addAll(leaderboardTitle, leaderboardList);
+    }
+
+    // Cập nhật danh sách Top 10 từ HighScoreManager
+    public void refreshHighScores() {
+        if (leaderboardList == null) return;
+        List<String> lines = new ArrayList<>();
+        if (highScoreManager != null) {
+            List<HighScoreManager.Entry> top = highScoreManager.getTop10();
+            if (top.isEmpty()) {
+                lines.add("Chưa có điểm nào");
+            } else {
+                int rank = 1;
+                for (HighScoreManager.Entry e : top) {
+                    // Định dạng: " 1) Tên .......... 12345"
+                    String row = String.format("%2d) %-18s %7d", rank, e.name, e.score);
+                    lines.add(row);
+                    rank++;
+                }
+            }
+        } else {
+            lines.add("Chưa cấu hình HighScoreManager");
+        }
+        leaderboardList.getItems().setAll(lines);
+    }
 }

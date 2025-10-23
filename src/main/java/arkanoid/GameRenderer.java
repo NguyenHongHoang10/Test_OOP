@@ -21,10 +21,12 @@ public class GameRenderer {
         gc.setFill(Color.rgb(20, 24, 30));
         gc.fillRect(0, 0, width, height);
 
-        // 2. Vẽ HUD (Điểm, Mạng)
+        // 2. Vẽ HUD (High, Score, Lives)
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font(18));
-        gc.fillText("Score: " + state.getScore(), 10, 22);
+        // Hiển thị High Score ở trên Score
+        gc.fillText("HighScore: " + state.getHighScore(), 10, 22);
+        gc.fillText("Score: " + state.getScore(), 10, 42);
         gc.fillText("Lives: " + state.getLives(), width - 110, 22);
 
         // 3. Vẽ các đối tượng game

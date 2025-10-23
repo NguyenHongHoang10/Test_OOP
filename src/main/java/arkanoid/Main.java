@@ -13,21 +13,29 @@ public class Main extends Application {
         // Holder để tham chiếu scene trong callback Game (do lambda cần biến final/effectively final)
         class MenuSceneHolder { Scene scene; }
         MenuSceneHolder menuSceneHolder = new MenuSceneHolder();
+        // Holder cho MenuPane để có thể refresh leaderboard từ callback
+        class MenuPaneHolder { MenuPane pane; }
+        MenuPaneHolder menuPaneHolder = new MenuPaneHolder();
 
         // Thêm khởi tạo Save/Load + HighScore
         SaveManager saveManager = new SaveManager();              // Quản lý lưu/tải
         HighScoreManager highScoreManager = new HighScoreManager(); // Bảng xếp hạng Top 10
 
         // Tạo Game trước nhưng không bắt đầu trận
-        // Callback trả về menu -- chạy trên JavaFX thread
-        // Dùng constructor mở rộng có Save/HighScore
+        // Callback trả về menu -- chạy trên JavaFX thread, đồng thời refresh bảng xếp hạng
         Game game = new Game(width, height, () -> {
-            Platform.runLater(() -> stage.setScene(menuSceneHolder.scene));
+            Platform.runLater(() -> {
+                if (menuPaneHolder.pane != null) {
+                    menuPaneHolder.pane.refreshHighScores(); // Cập nhật Top 10 khi quay menu
+                }
+                stage.setScene(menuSceneHolder.scene);
+            });
         }, saveManager, highScoreManager);
         Scene gameScene = new Scene(game, width, height);
 
-        // Tạo MenuPane (bản mới có nhập tên)
+        // Tạo MenuPane (bản mới có nhập tên + leaderboard Top 10)
         MenuPane menuPane = new MenuPane(
+                highScoreManager,
                 // Start callback có tên người chơi
                 (playerName) -> {
                     game.startNewGame(playerName); // Truyền tên vào GameState
@@ -52,6 +60,7 @@ public class Main extends Application {
                 // Exit callback
                 Platform::exit
         );
+        menuPaneHolder.pane = menuPane;
 
         Scene menuScene = new Scene(menuPane, width, height);
         menuSceneHolder.scene = menuScene;

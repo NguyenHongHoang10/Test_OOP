@@ -18,6 +18,9 @@ public class GameState {
     // Thêm playerName (Tên người chơi) để lưu HighScore + Save/Load
     private String playerName = "Player";
 
+    // High Score (điểm cao nhất toàn bộ)
+    private int highScore = 0;
+
     public GameState() {}
 
     // Getters
@@ -36,6 +39,8 @@ public class GameState {
     public int getCurrentLevelIndex() { return currentLevelIndex; }
     // Thêm getter tên người chơi
     public String getPlayerName() { return playerName; }
+    // Thêm getter High Score
+    public int getHighScore() { return highScore; }
 
     // Setters & Modifiers
     public void setLives(int lives) { this.lives = lives; }
@@ -63,6 +68,12 @@ public class GameState {
         }
     }
 
+    // Thêm setter High Score (dùng để hiển thị trong HUD)
+    public void setHighScore(int highScore) {
+        if (highScore < 0) highScore = 0;
+        this.highScore = highScore;
+    }
+
     public void setBarrierActive(boolean barrierActive, double yPosition) {
         this.barrierActive = barrierActive;
         if (barrierActive) this.barrierY = yPosition;
@@ -84,5 +95,6 @@ public class GameState {
         confirmOverlay = false;
         barrierActive = false;
         currentLevelIndex = 0;
+        // Không reset highScore tại đây (highScore là toàn cục)
     }
 }

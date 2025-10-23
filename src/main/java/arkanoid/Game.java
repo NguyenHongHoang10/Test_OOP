@@ -67,6 +67,9 @@ public class Game extends Pane {
         loadLevel(0);
         createNewBall(); // Tạo bóng, bóng sẽ dính vào paddle
 
+        // Đồng bộ highScore ngay từ đầu (để HUD có số liệu đúng nếu cần)
+        syncHighScoreFromManager();
+
         // Cài đặt Input
         setFocusTraversable(true);
         setOnKeyPressed(e -> handleKeyPressed(e.getCode()));
@@ -111,6 +114,9 @@ public class Game extends Pane {
 
         loadLevel(0);
         createNewBall();
+
+        // Đồng bộ highScore để HUD hiển thị đúng ngay khi vào trận
+        syncHighScoreFromManager();
     }
 
     public void resume() {
@@ -172,8 +178,6 @@ public class Game extends Pane {
          x,y của paddle trong GameObject là protected,
          nhưng có getter để set gián tiếp bằng cách dịch chuyển
          Chỉ cần x do y cố định gần đáy */
-        double dx = s.paddleX - paddle.getX();
-
         try {
             java.lang.reflect.Field fx = GameObject.class.getDeclaredField("x");
             fx.setAccessible(true);
@@ -238,6 +242,9 @@ public class Game extends Pane {
             entityManager.addActiveEffect(ae);
         }
 
+        // Đồng bộ highScore để HUD hiển thị đúng sau khi load
+        syncHighScoreFromManager();
+
         return true;
     }
 
@@ -282,6 +289,12 @@ public class Game extends Pane {
         if (autosaveTimer >= 1.0) {
             autosaveImmediate();
             autosaveTimer = 0;
+        }
+
+        // Cập nhật highScore trong HUD là max(highScore hiện tại, score đang chơi)
+        // (chỉ hiển thị; ghi file thật sự thực hiện ở onGameEnd)
+        if (gameState.getScore() > gameState.getHighScore()) {
+            gameState.setHighScore(gameState.getScore());
         }
     }
 
@@ -522,10 +535,21 @@ public class Game extends Pane {
             if (highScoreManager.isTop10Candidate(gameState.getScore())) {
                 highScoreManager.submitScore(gameState.getPlayerName(), gameState.getScore());
             }
+            // Đồng bộ lại highScore sau khi ghi nhận điểm để HUD/menu luôn mới nhất
+            syncHighScoreFromManager();
         }
         if (saveManager != null) {
             saveManager.deleteSave();
         }
     }
 
+    // Đọc Top1 từ HighScoreManager và đặt vào GameState để HUD vẽ "High"
+    private void syncHighScoreFromManager() {
+        if (highScoreManager == null) return;
+        int top = 0;
+        for (HighScoreManager.Entry e : highScoreManager.getTop10()) {
+            if (e.score > top) top = e.score;
+        }
+        gameState.setHighScore(top);
+    }
 }
