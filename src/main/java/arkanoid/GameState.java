@@ -15,6 +15,9 @@ public class GameState {
     private final double barrierThickness = 6;
     private int currentLevelIndex = 0;
 
+    // Thêm playerName (Tên người chơi) để lưu HighScore + Save/Load
+    private String playerName = "Player";
+
     public GameState() {}
 
     // Getters
@@ -31,6 +34,8 @@ public class GameState {
     public double getBarrierY() { return barrierY; }
     public double getBarrierThickness() { return barrierThickness; }
     public int getCurrentLevelIndex() { return currentLevelIndex; }
+    // Thêm getter tên người chơi
+    public String getPlayerName() { return playerName; }
 
     // Setters & Modifiers
     public void setLives(int lives) { this.lives = lives; }
@@ -50,6 +55,13 @@ public class GameState {
     public void setGameStarted(boolean gameStarted) { this.gameStarted = gameStarted; }
     public void setPauseOverlay(boolean pauseOverlay) { this.pauseOverlay = pauseOverlay; }
     public void setConfirmOverlay(boolean confirmOverlay) { this.confirmOverlay = confirmOverlay; }
+
+    // Thêm setter tên người chơi
+    public void setPlayerName(String playerName) {
+        if (playerName != null && !playerName.trim().isEmpty()) {
+            this.playerName = playerName.trim();
+        }
+    }
 
     public void setBarrierActive(boolean barrierActive, double yPosition) {
         this.barrierActive = barrierActive;

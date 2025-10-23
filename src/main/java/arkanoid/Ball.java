@@ -12,6 +12,10 @@ public class Ball extends GameObject {
     private boolean fireball = false;     // nếu true => phá hủy mọi brick chạm phải
     private boolean penetrating = false;   // nếu true => không nảy khi va chạm brick (xuyên phá)
 
+    // Thêm Getter vx, vy để dùng cho Save/Load (lưu/khôi phục hướng bay)
+    public double getVx() { return vx; }
+    public double getVy() { return vy; }
+
     public Ball(double x, double y, double radius, Paddle paddle) {
         // x,y truyền vào là tâm, chuyển về góc trái trên cho GameObject
         super(x - radius, y - radius, radius * 2, radius * 2);

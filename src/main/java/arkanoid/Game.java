@@ -25,6 +25,11 @@ public class Game extends Pane {
     private final PowerUpManager powerUpManager;
     private final CollisionManager collisionManager;
 
+    // Thêm Save/Load + HighScore
+    private final SaveManager saveManager;
+    private final HighScoreManager highScoreManager;
+    private double autosaveTimer = 0;                 // bộ đếm autosave định kỳ
+
     // Level data
     private final String[] levelFiles = new String[] { "/levels/level1.txt", "/levels/level2.txt", "/levels/level3.txt" };
 
@@ -33,8 +38,16 @@ public class Game extends Pane {
     private double timeSinceLastShot = 0.0;
 
     public Game(double w, double h, Runnable returnToMenuCallback) {
+        // Giữ nguyên Constructor cũ để tương thích ngược
+        this(w, h, returnToMenuCallback, null, null);
+    }
+
+    // Thêm Constructor mở rộng có SaveManager/HighScoreManager
+    public Game(double w, double h, Runnable returnToMenuCallback, SaveManager saveManager, HighScoreManager highScoreManager) {
         this.width = w; this.height = h;
         this.returnToMenuCallback = returnToMenuCallback;
+        this.saveManager = saveManager;
+        this.highScoreManager = highScoreManager;
 
         canvas = new Canvas(width, height);
         gc = canvas.getGraphicsContext2D();
@@ -80,11 +93,22 @@ public class Game extends Pane {
         timer.start();
     }
 
+    // Bắt đầu game với tên người chơi
+    public void startNewGame(String playerName) {
+        gameState.setPlayerName(playerName);
+        startNewGame();
+        // lưu ngay bản lưu khởi tạo
+        autosaveImmediate();
+    }
+
     public void startNewGame() {
         gameState.resetForNewGame();
         entityManager.clearAll();
         paddle.setWidth(120); // Reset paddle width
         paddle.setHasLaser(false); // Reset laser
+        paddle.press(KeyCode.A); // Đảm bảo nhận focus input
+        paddle.release(KeyCode.A);
+
         loadLevel(0);
         createNewBall();
     }
@@ -102,10 +126,119 @@ public class Game extends Pane {
     public void pause() {
         gameState.setRunning(false);
         gameState.setPauseOverlay(true);
+        // Autosave khi pause
+        autosaveImmediate();
     }
 
     public boolean isGameStarted() {
         return gameState.isGameStarted();
+    }
+
+    // Load từ SaveManager; trả true nếu thành công
+    public boolean loadFromSave() {
+        if (saveManager == null || !saveManager.hasSave()) return false;
+        GameSnapshot s = saveManager.load();
+        if (s == null) return false;
+
+        // Áp trạng thái chung
+        gameState.setPlayerName(s.playerName);
+        gameState.setLives(s.lives);
+        gameState.setScore(s.score);
+        gameState.setScoreMultiplier(s.scoreMultiplier);
+        gameState.setCurrentLevelIndex(s.currentLevelIndex);
+        gameState.setBarrierActive(s.barrierActive, s.barrierY);
+        gameState.setGameStarted(true);
+        gameState.setRunning(true);
+        gameState.setShowMessage(false);
+        gameState.setPauseOverlay(false);
+        gameState.setConfirmOverlay(false);
+
+        // Nạp bricks từ snapshot (bỏ qua LevelLoader)
+        entityManager.clearAll();
+        for (GameSnapshot.BrickData bd : s.bricks) {
+            Brick.Type tp;
+            switch (bd.type) {
+                case "INDESTRUCTIBLE": tp = Brick.Type.INDESTRUCTIBLE; break;
+                case "EXPLOSIVE": tp = Brick.Type.EXPLOSIVE; break;
+                default: tp = Brick.Type.NORMAL;
+            }
+            Brick brick = new Brick(bd.x, bd.y, bd.w, bd.h, tp, bd.hits);
+            entityManager.addBrick(brick);
+        }
+
+        // Paddle
+        paddle.setWidth(s.paddleWidth);
+        /* Kéo paddle về vị trí snapshot
+         x,y của paddle trong GameObject là protected,
+         nhưng có getter để set gián tiếp bằng cách dịch chuyển
+         Chỉ cần x do y cố định gần đáy */
+        double dx = s.paddleX - paddle.getX();
+
+        try {
+            java.lang.reflect.Field fx = GameObject.class.getDeclaredField("x");
+            fx.setAccessible(true);
+            fx.set(paddle, s.paddleX);
+            java.lang.reflect.Field fy = GameObject.class.getDeclaredField("y");
+            fy.setAccessible(true);
+            fy.set(paddle, s.paddleY);
+        } catch (Exception ignored) { /* an toàn bỏ qua nếu phản chiếu thất bại */ }
+        paddle.setHasLaser(s.paddleHasLaser);
+
+        // Balls
+        for (GameSnapshot.BallData bd : s.balls) {
+            Ball b = new Ball(bd.cx, bd.cy, bd.radius, paddle);
+            b.setBaseSpeed(bd.baseSpeed);
+            b.setVelocity(bd.vx, bd.vy);
+            b.setStuck(bd.stuckToPaddle);
+            b.setFireball(bd.fireball);
+            entityManager.addBall(b);
+        }
+        // Nếu không có bóng trong snapshot thì tạo mới để tránh lỗi
+        if (entityManager.getBalls().isEmpty()) {
+            createNewBall();
+        }
+
+        // PowerUps
+        for (GameSnapshot.PowerUpData pd : s.powerUps) {
+            PowerUp.PowerType type = PowerUp.PowerType.valueOf(pd.type);
+            entityManager.addPowerUp(new PowerUp(pd.cx, pd.cy, type));
+        }
+
+        // Bullets
+        for (GameSnapshot.BulletData bd : s.bullets) {
+            entityManager.addBullet(new Bullet(bd.cx, bd.cy));
+        }
+
+        // ActiveEffects: khôi phục kèm giá trị gốc theo chỉ số bóng
+        for (GameSnapshot.EffectData ed : s.effects) {
+            ActiveEffect ae = new ActiveEffect(PowerUp.PowerType.valueOf(ed.type), ed.remaining);
+            ae.originalPaddleWidth = ed.originalPaddleWidth;
+            ae.originalHasLaser = ed.originalHasLaser;
+            ae.originalScoreMultiplier = ed.originalScoreMultiplier;
+
+            // map theo index -> Ball
+            for (GameSnapshot.IntDouble pair : ed.originalSpeeds) {
+                int idx = pair.index;
+                if (idx >= 0 && idx < entityManager.getBalls().size()) {
+                    ae.originalSpeeds.put(entityManager.getBalls().get(idx), pair.value);
+                }
+            }
+            for (GameSnapshot.IntDouble pair : ed.originalRadii) {
+                int idx = pair.index;
+                if (idx >= 0 && idx < entityManager.getBalls().size()) {
+                    ae.originalRadii.put(entityManager.getBalls().get(idx), pair.value);
+                }
+            }
+            for (GameSnapshot.IntBool pair : ed.originalFireball) {
+                int idx = pair.index;
+                if (idx >= 0 && idx < entityManager.getBalls().size()) {
+                    ae.originalFireball.put(entityManager.getBalls().get(idx), pair.value);
+                }
+            }
+            entityManager.addActiveEffect(ae);
+        }
+
+        return true;
     }
 
     // Vòng lặp Update chính (đã gọn gàng hơn)
@@ -143,6 +276,13 @@ public class Game extends Pane {
 
         // 4. Cập nhật các Hiệu ứng (kiểm tra hết hạn)
         powerUpManager.updateActiveEffects(dt, entityManager, gameState, paddle);
+
+        // 5. Autosave định kỳ khi đang chạy (mỗi 1 giây)
+        autosaveTimer += dt;
+        if (autosaveTimer >= 1.0) {
+            autosaveImmediate();
+            autosaveTimer = 0;
+        }
     }
 
     // Vòng lặp Render chính
@@ -159,6 +299,7 @@ public class Game extends Pane {
             gameState.setRunning(false);
             gameState.setWin(false);
             gameState.setShowMessage(true);
+            onGameEnd(); // Cập nhật HighScore + dọn save
         } else {
             // Mất 1 mạng, tạo bóng mới
             createNewBall();
@@ -172,6 +313,7 @@ public class Game extends Pane {
             gameState.setRunning(false);
             gameState.setWin(true);
             gameState.setShowMessage(true);
+            onGameEnd(); // Cập nhật HighScore + dọn save
         } else {
             // Tải level tiếp theo
             loadLevel(gameState.getCurrentLevelIndex());
@@ -223,6 +365,8 @@ public class Game extends Pane {
                 gameState.setConfirmOverlay(false);
                 gameState.setRunning(true); // Tiếp tục game
             } else if (code == KeyCode.Y) {
+                // Autosave trước khi thoát (đảm bảo Continue)
+                autosaveImmediate();
                 Platform.exit(); // Thoát game
             }
             return;
@@ -233,6 +377,8 @@ public class Game extends Pane {
             if (code == KeyCode.P) resume();
             else if (code == KeyCode.O) { // 'O' để về Menu
                 pause(); // Đảm bảo game dừng
+                // Autosave khi về menu
+                autosaveImmediate();
                 returnToMenuCallback.run();
             }
             return;
@@ -240,8 +386,14 @@ public class Game extends Pane {
 
         // Xử lý khi game đang dừng (Game Over / Win)
         if (!gameState.isRunning()) {
-            if (code == KeyCode.S) startNewGame();
-            else if (code == KeyCode.R) returnToMenuCallback.run();
+            if (code == KeyCode.S) {
+                startNewGame(gameState.getPlayerName()); // Giữ lại tên hiện tại
+            }
+            else if (code == KeyCode.R) {
+                // Trước khi quay menu, dọn save của ván đã kết thúc
+                if (saveManager != null) saveManager.deleteSave();
+                returnToMenuCallback.run();
+            }
             return; // Không xử lý input game khi đang dừng
         }
 
@@ -267,4 +419,113 @@ public class Game extends Pane {
                 break;
         }
     }
+
+    // Tạo snapshot để lưu (Save)
+    private GameSnapshot createSnapshot() {
+        GameSnapshot s = new GameSnapshot();
+        // Thông tin chung
+        s.playerName = gameState.getPlayerName();
+        s.lives = gameState.getLives();
+        s.score = gameState.getScore();
+        s.scoreMultiplier = gameState.getScoreMultiplier();
+        s.currentLevelIndex = gameState.getCurrentLevelIndex();
+        s.barrierActive = gameState.isBarrierActive();
+        s.barrierY = gameState.getBarrierY();
+
+        // Paddle
+        s.paddleX = paddle.getX();
+        s.paddleY = paddle.getY();
+        s.paddleWidth = paddle.getWidth();
+        s.paddleHeight = paddle.getHeight();
+        s.paddleHasLaser = paddle.hasLaser();
+
+        // Balls
+        for (int i = 0; i < entityManager.getBalls().size(); i++) {
+            Ball b = entityManager.getBalls().get(i);
+            GameSnapshot.BallData bd = new GameSnapshot.BallData();
+            bd.cx = b.centerX();
+            bd.cy = b.centerY();
+            bd.radius = b.getRadius();
+            bd.vx = b.getVx(); // [THÊM] đã bổ sung getter
+            bd.vy = b.getVy();
+            bd.baseSpeed = b.getBaseSpeed();
+            bd.stuckToPaddle = b.isStuck();
+            bd.fireball = b.isFireball();
+            s.balls.add(bd);
+        }
+
+        // Bricks
+        for (Brick br : entityManager.getBricks()) {
+            GameSnapshot.BrickData bd = new GameSnapshot.BrickData();
+            bd.x = br.getX(); bd.y = br.getY();
+            bd.w = br.getWidth(); bd.h = br.getHeight();
+            bd.type = br.getType().name();
+            bd.hits = br.getHits();
+            s.bricks.add(bd);
+        }
+
+        // PowerUps
+        for (PowerUp pu : entityManager.getPowerUps()) {
+            GameSnapshot.PowerUpData pd = new GameSnapshot.PowerUpData();
+            pd.cx = pu.x; pd.cy = pu.y;
+            pd.type = pu.type.name();
+            s.powerUps.add(pd);
+        }
+
+        // Bullets
+        for (Bullet bu : entityManager.getBullets()) {
+            GameSnapshot.BulletData bd = new GameSnapshot.BulletData();
+            bd.cx = bu.x + bu.w/2.0; // lưu theo tâm
+            bd.cy = bu.y + bu.h/2.0;
+            s.bullets.add(bd);
+        }
+
+        // ActiveEffects – lưu cả giá trị gốc
+        for (ActiveEffect ae : entityManager.getActiveEffects()) {
+            GameSnapshot.EffectData ed = new GameSnapshot.EffectData();
+            ed.type = ae.type.name();
+            ed.remaining = ae.remaining;
+            ed.originalPaddleWidth = ae.originalPaddleWidth;
+            ed.originalHasLaser = ae.originalHasLaser;
+            ed.originalScoreMultiplier = ae.originalScoreMultiplier;
+
+            // map Ball->index
+            for (int idx = 0; idx < entityManager.getBalls().size(); idx++) {
+                Ball b = entityManager.getBalls().get(idx);
+                if (ae.originalSpeeds.containsKey(b)) {
+                    ed.originalSpeeds.add(new GameSnapshot.IntDouble(idx, ae.originalSpeeds.get(b)));
+                }
+                if (ae.originalRadii.containsKey(b)) {
+                    ed.originalRadii.add(new GameSnapshot.IntDouble(idx, ae.originalRadii.get(b)));
+                }
+                if (ae.originalFireball.containsKey(b)) {
+                    ed.originalFireball.add(new GameSnapshot.IntBool(idx, ae.originalFireball.get(b)));
+                }
+            }
+            s.effects.add(ed);
+        }
+
+        return s;
+    }
+
+    // Lưu ngay snapshot (dùng khi pause/confirm/định kỳ)
+    private void autosaveImmediate() {
+        if (saveManager == null) return;
+        // Không lưu nếu đang ở màn kết thúc
+        if (gameState.isShowMessage()) return;
+        saveManager.save(createSnapshot());
+    }
+
+    // Khi trận đấu kết thúc: cập nhật HighScore + xóa save (không Continue vào ván đã kết thúc)
+    private void onGameEnd() {
+        if (highScoreManager != null) {
+            if (highScoreManager.isTop10Candidate(gameState.getScore())) {
+                highScoreManager.submitScore(gameState.getPlayerName(), gameState.getScore());
+            }
+        }
+        if (saveManager != null) {
+            saveManager.deleteSave();
+        }
+    }
+
 }

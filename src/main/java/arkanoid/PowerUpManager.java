@@ -21,25 +21,45 @@ public class PowerUpManager {
                         if (ae.originalPaddleWidth > 0) paddle.setWidth(ae.originalPaddleWidth);
                         break;
                     case TINY_BALL:
-                        for (Map.Entry<Ball, Double> e : ae.originalRadii.entrySet()) {
-                            Ball bl = e.getKey();
-                            if (entities.getBalls().contains(bl)) bl.setRadius(e.getValue());
+                        // Dự phòng: nếu không có map originalRadii (ví dụ load từ save), khôi phục theo tỉ lệ nghịch
+                        if (!ae.originalRadii.isEmpty()) {
+                            for (Map.Entry<Ball, Double> e : ae.originalRadii.entrySet()) {
+                                Ball bl = e.getKey();
+                                if (entities.getBalls().contains(bl)) bl.setRadius(e.getValue());
+                            }
+                        } else {
+                            for (Ball bl : entities.getBalls()) {
+                                bl.setRadius(bl.getRadius() / 0.6); // revert
+                            }
                         }
                         break;
                     case SLOW_BALL:
                     case FAST_BALL:
-                        for (Map.Entry<Ball, Double> e : ae.originalSpeeds.entrySet()) {
-                            Ball bl = e.getKey();
-                            if (entities.getBalls().contains(bl)) bl.setBaseSpeed(e.getValue());
+                        // Dự phòng: nếu không có map originalSpeeds, khôi phục theo tỉ lệ nghịch
+                        if (!ae.originalSpeeds.isEmpty()) {
+                            for (Map.Entry<Ball, Double> e : ae.originalSpeeds.entrySet()) {
+                                Ball bl = e.getKey();
+                                if (entities.getBalls().contains(bl)) bl.setBaseSpeed(e.getValue());
+                            }
+                        } else {
+                            double factor = (ae.type == PowerUp.PowerType.SLOW_BALL) ? (1.0 / 0.7) : (1.0 / 1.3);
+                            for (Ball bl : entities.getBalls()) {
+                                bl.setBaseSpeed(bl.getBaseSpeed() * factor);
+                            }
                         }
                         break;
                     case LASER_PADDLE:
                         paddle.setHasLaser(ae.originalHasLaser);
                         break;
                     case FIREBALL:
-                        for (Map.Entry<Ball, Boolean> e : ae.originalFireball.entrySet()) {
-                            Ball bl = e.getKey();
-                            if (entities.getBalls().contains(bl)) bl.setFireball(e.getValue());
+                        // Dự phòng: nếu không có map originalFireball, tắt fireball cho tất cả bóng
+                        if (!ae.originalFireball.isEmpty()) {
+                            for (Map.Entry<Ball, Boolean> e : ae.originalFireball.entrySet()) {
+                                Ball bl = e.getKey();
+                                if (entities.getBalls().contains(bl)) bl.setFireball(e.getValue());
+                            }
+                        } else {
+                            for (Ball bl : entities.getBalls()) bl.setFireball(false);
                         }
                         break;
                     case SCORE_MULTIPLIER:
@@ -231,4 +251,5 @@ public class PowerUpManager {
             bl.setBaseSpeed(bl.getBaseSpeed() * speedMultiplier);
         }
     }
+
 }
