@@ -12,20 +12,32 @@ public class Ball extends GameObject {
     private boolean fireball = false;     // nếu true => phá hủy mọi brick chạm phải
     private boolean penetrating = false;   // nếu true => không nảy khi va chạm brick (xuyên phá)
 
-    // Thêm Getter vx, vy để dùng cho Save/Load (lưu/khôi phục hướng bay)
-    public double getVx() { return vx; }
-    public double getVy() { return vy; }
-
     public Ball(double x, double y, double radius, Paddle paddle) {
         // x,y truyền vào là tâm, chuyển về góc trái trên cho GameObject
         super(x - radius, y - radius, radius * 2, radius * 2);
         this.radius = radius;
         this.paddle = paddle;
-        this.speed = 300;
+        this.speed = 150;
         this.vx = 0;
         this.vy = -speed; // mặc định hướng lên
     }
 
+    // Setter & Getter thêm cho Boss collision
+    public void setX(double x) {
+        this.x = x;
+    }
+
+    public void setY(double y) {
+        this.y = y;
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
     // Thiết lập vận tốc cơ bản (dùng khi load level có metadata speed)
     public void setBaseSpeed(double newSpeed) {
         this.speed = newSpeed;
@@ -224,4 +236,14 @@ public class Ball extends GameObject {
         this.vy = -Math.abs(this.vy);
     }
 
+    public void destroy() {
+        System.out.println("Ball destroyed by boss!");
+    }
+    public void reverseY() {
+        this.vy = -this.vy;
+    }
+
+    public void reverseX() {
+        this.vx = -vx;
+    }
 }

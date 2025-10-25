@@ -21,6 +21,12 @@ public class EntityManager {
             bl.update(dt);
         }
 
+        for (Brick brick : bricks) {
+            if (brick instanceof MovingBrick) {
+                ((MovingBrick) brick).update(dt);
+            }
+        }
+
         // Cập nhật power-up đang rơi
         Iterator<PowerUp> pIt = powerUps.iterator();
         while (pIt.hasNext()) {

@@ -14,12 +14,8 @@ public class GameState {
     private double barrierY = -1;
     private final double barrierThickness = 6;
     private int currentLevelIndex = 0;
-
-    // Thêm playerName (Tên người chơi) để lưu HighScore + Save/Load
-    private String playerName = "Player";
-
-    // High Score (điểm cao nhất toàn bộ)
-    private int highScore = 0;
+    private boolean levelComplete = false; // Cờ hiệu báo đã qua màn
+    private boolean gameComplete = false; // Cờ hiệu báo đã thắng toàn bộ game
 
     public GameState() {}
 
@@ -37,10 +33,8 @@ public class GameState {
     public double getBarrierY() { return barrierY; }
     public double getBarrierThickness() { return barrierThickness; }
     public int getCurrentLevelIndex() { return currentLevelIndex; }
-    // Thêm getter tên người chơi
-    public String getPlayerName() { return playerName; }
-    // Thêm getter High Score
-    public int getHighScore() { return highScore; }
+    public boolean isLevelComplete() { return levelComplete; }
+    public boolean isGameComplete() { return gameComplete; }
 
     // Setters & Modifiers
     public void setLives(int lives) { this.lives = lives; }
@@ -57,22 +51,8 @@ public class GameState {
     public void setRunning(boolean running) { this.running = running; }
     public void setWin(boolean win) { this.win = win; }
     public void setShowMessage(boolean showMessage) { this.showMessage = showMessage; }
-    public void setGameStarted(boolean gameStarted) { this.gameStarted = gameStarted; }
     public void setPauseOverlay(boolean pauseOverlay) { this.pauseOverlay = pauseOverlay; }
     public void setConfirmOverlay(boolean confirmOverlay) { this.confirmOverlay = confirmOverlay; }
-
-    // Thêm setter tên người chơi
-    public void setPlayerName(String playerName) {
-        if (playerName != null && !playerName.trim().isEmpty()) {
-            this.playerName = playerName.trim();
-        }
-    }
-
-    // Thêm setter High Score (dùng để hiển thị trong HUD)
-    public void setHighScore(int highScore) {
-        if (highScore < 0) highScore = 0;
-        this.highScore = highScore;
-    }
 
     public void setBarrierActive(boolean barrierActive, double yPosition) {
         this.barrierActive = barrierActive;
@@ -81,6 +61,8 @@ public class GameState {
     public void consumeBarrier() { this.barrierActive = false; }
 
     public void setCurrentLevelIndex(int index) { this.currentLevelIndex = index; }
+    public void setLevelComplete(boolean complete) { this.levelComplete = complete; }
+    public void setGameComplete(boolean complete) { this.gameComplete = complete; }
     public void incrementLevelIndex() { this.currentLevelIndex++; }
 
     public void resetForNewGame() {
@@ -95,6 +77,7 @@ public class GameState {
         confirmOverlay = false;
         barrierActive = false;
         currentLevelIndex = 0;
-        // Không reset highScore tại đây (highScore là toàn cục)
+        levelComplete = false; // Reset cờ
+        gameComplete = false; // Reset cờ
     }
 }

@@ -7,6 +7,9 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Pane;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class Game extends Pane {
     // Core components
@@ -16,7 +19,10 @@ public class Game extends Pane {
     private final GraphicsContext gc;
     private final Paddle paddle;
     private final Runnable returnToMenuCallback;
+    private final Runnable returnToLevelSelectCallback;
     private long lastTime = 0;
+    private Boss boss;
+    private boolean bossLevel = false;
 
     // Các Trình quản lý (Managers)
     private final GameState gameState;
@@ -24,30 +30,94 @@ public class Game extends Pane {
     private final GameRenderer gameRenderer;
     private final PowerUpManager powerUpManager;
     private final CollisionManager collisionManager;
+    private Runnable onPauseCallback; // Sẽ được gọi khi game pause
+    private Runnable onResumeCallback; // Sẽ được gọi khi game resume
 
-    // Thêm Save/Load + HighScore
-    private final SaveManager saveManager;
-    private final HighScoreManager highScoreManager;
-    private double autosaveTimer = 0;                 // bộ đếm autosave định kỳ
+    public GameState getGameState() {
+        return this.gameState;
+    }
+
+    /**
+     * Đăng ký một hành động (Runnable) để chạy khi game vào trạng thái Pause.
+     * GameContainer sẽ sử dụng hàm này.
+     */
+    public void setOnPause(Runnable r) {
+        this.onPauseCallback = r;
+    }
+
+    /**
+     * Đăng ký một hành động (Runnable) để chạy khi game thoát trạng thái Pause (resume).
+     * GameContainer sẽ sử dụng hàm này.
+     */
+    public void setOnResume(Runnable r) {
+        this.onResumeCallback = r;
+    }
+
+    /**
+     * Public hàm để hủy bỏ việc thoát game (nhấn "No").
+     * Sẽ xóa cờ 'confirm' và giữ game ở trạng thái pause
+     * (trigger callback để GameContainer hiển thị lại menu pause).
+     */
+    public void cancelQuit() {
+        gameState.setConfirmOverlay(false);
+        // Game vẫn đang pause, trigger lại callback để UI cập nhật
+        if (onPauseCallback != null) {
+            onPauseCallback.run();
+        }
+    }
+
+    /**
+     * Public hàm để quay về Menu.
+     * GameContainer sẽ gọi hàm này khi nhấn nút Menu.
+     */
+    public void returnToMenu() {
+        gameState.setLevelComplete(false); // Reset cờ khi về home
+        gameState.setGameComplete(false); // Reset cờ khi về home
+        pause(); // Đảm bảo game dừng
+        if (returnToMenuCallback != null) {
+            returnToMenuCallback.run();
+        }
+    }
+
+    /**
+     * Public hàm để chơi lại màn hiện tại.
+     * GameContainer sẽ gọi hàm này khi nhấn nút Restart.
+     */
+    public void restartCurrentLevel() {
+        gameState.setLevelComplete(false); // Reset cờ khi restart
+        gameState.setGameComplete(false); // Reset cờ khi restart
+        // Tải lại level hiện tại dựa trên index
+        int currentLevel = gameState.getCurrentLevelIndex();
+        switch (currentLevel) {
+            case 0: startNewGame(); break; // Level 1
+            case 1: startLevel2(); break;
+            case 2: startLevel3(); break;
+            case 3: startLevel4(); break;
+            case 4: startLevel5(); break;
+            case 5: startLevel6(); break;
+            default: startNewGame(); // Mặc định
+        }
+        resume();
+    }
 
     // Level data
-    private final String[] levelFiles = new String[] { "/levels/level1.txt", "/levels/level2.txt", "/levels/level3.txt" };
+    private final String[] levelFiles = new String[] {
+            "/levels/level1.txt",
+            "/levels/level2.txt",
+            "/levels/level3.txt",
+            "/levels/level4.txt",
+            "/levels/level5.txt",
+            "/levels/level6.txt"
+    };
 
     // Cooldown bắn
     private double shootCooldown = 0.25;
     private double timeSinceLastShot = 0.0;
 
-    public Game(double w, double h, Runnable returnToMenuCallback) {
-        // Giữ nguyên Constructor cũ để tương thích ngược
-        this(w, h, returnToMenuCallback, null, null);
-    }
-
-    // Thêm Constructor mở rộng có SaveManager/HighScoreManager
-    public Game(double w, double h, Runnable returnToMenuCallback, SaveManager saveManager, HighScoreManager highScoreManager) {
+    public Game(double w, double h, Runnable returnToMenuCallback, Runnable returnToLevelSelectCallback) {
         this.width = w; this.height = h;
         this.returnToMenuCallback = returnToMenuCallback;
-        this.saveManager = saveManager;
-        this.highScoreManager = highScoreManager;
+        this.returnToLevelSelectCallback = returnToLevelSelectCallback;
 
         canvas = new Canvas(width, height);
         gc = canvas.getGraphicsContext2D();
@@ -66,9 +136,6 @@ public class Game extends Pane {
         // Tải level 0 (nhưng chưa chạy)
         loadLevel(0);
         createNewBall(); // Tạo bóng, bóng sẽ dính vào paddle
-
-        // Đồng bộ highScore ngay từ đầu (để HUD có số liệu đúng nếu cần)
-        syncHighScoreFromManager();
 
         // Cài đặt Input
         setFocusTraversable(true);
@@ -96,33 +163,88 @@ public class Game extends Pane {
         timer.start();
     }
 
-    // Bắt đầu game với tên người chơi
-    public void startNewGame(String playerName) {
-        gameState.setPlayerName(playerName);
-        startNewGame();
-        // lưu ngay bản lưu khởi tạo
-        autosaveImmediate();
-    }
-
     public void startNewGame() {
+        boss = null;         // Xóa boss cũ
+        bossLevel = false;   // Tắt cờ boss level
         gameState.resetForNewGame();
         entityManager.clearAll();
         paddle.setWidth(120); // Reset paddle width
         paddle.setHasLaser(false); // Reset laser
-        paddle.press(KeyCode.A); // Đảm bảo nhận focus input
-        paddle.release(KeyCode.A);
-
         loadLevel(0);
         createNewBall();
+        resume();
+    }
 
-        // Đồng bộ highScore để HUD hiển thị đúng ngay khi vào trận
-        syncHighScoreFromManager();
+    public void startLevel2() {
+        boss = null;         // Xóa boss cũ
+        bossLevel = false;   // Tắt cờ boss level
+        gameState.resetForNewGame();
+        entityManager.clearAll();
+        paddle.setWidth(120); // Reset paddle width
+        paddle.setHasLaser(false); // Reset laser
+        loadLevel(1);
+        createNewBall();
+        resume();
+    }
+
+    public void startLevel3() {
+        boss = null;         // Xóa boss cũ
+        bossLevel = false;   // Tắt cờ boss level
+        gameState.resetForNewGame();
+        entityManager.clearAll();
+        paddle.setWidth(120); // Reset paddle width
+        paddle.setHasLaser(false); // Reset laser
+        loadLevel(2);
+        createNewBall();
+        resume();
+    }
+
+    public void startLevel4() {
+        boss = null;         // Xóa boss cũ
+        bossLevel = false;   // Tắt cờ boss level
+        gameState.resetForNewGame();
+        entityManager.clearAll();
+        paddle.setWidth(120); // Reset paddle width
+        paddle.setHasLaser(false); // Reset laser
+        loadLevel(3);
+        createNewBall();
+        resume();
+    }
+
+
+    public void startLevel5() {
+        boss = null;         // Xóa boss cũ
+        bossLevel = false;   // Tắt cờ boss level
+        gameState.resetForNewGame();
+        entityManager.clearAll();
+        paddle.setWidth(120); // Reset paddle width
+        paddle.setHasLaser(false); // Reset laser
+        loadLevel(4);
+        createNewBall();
+        resume();
+    }
+
+    public void startLevel6() {
+        gameState.resetForNewGame();
+        entityManager.clearAll();
+        paddle.setWidth(120);
+        paddle.setHasLaser(false);
+        loadLevel(5);
+        createNewBall();
+        resume();
     }
 
     public void resume() {
+        gameState.setLevelComplete(false); // Luôn reset cờ khi resume
+        gameState.setGameComplete(false); // Luôn reset cờ khi resume
+        gameState.setConfirmOverlay(false); // Đảm bảo cờ confirm tắt khi resume
         if (!gameState.isGameStarted()) {
             startNewGame();
             return;
+        }
+
+        if (onResumeCallback != null) {
+            onResumeCallback.run(); // Thông báo cho container ẩn menu
         }
         gameState.setPauseOverlay(false);
         gameState.setConfirmOverlay(false);
@@ -132,120 +254,13 @@ public class Game extends Pane {
     public void pause() {
         gameState.setRunning(false);
         gameState.setPauseOverlay(true);
-        // Autosave khi pause
-        autosaveImmediate();
+        if (onPauseCallback != null) {
+            onPauseCallback.run(); // Thông báo cho container hiện menu
+        }
     }
 
     public boolean isGameStarted() {
         return gameState.isGameStarted();
-    }
-
-    // Load từ SaveManager; trả true nếu thành công
-    public boolean loadFromSave() {
-        if (saveManager == null || !saveManager.hasSave()) return false;
-        GameSnapshot s = saveManager.load();
-        if (s == null) return false;
-
-        // Áp trạng thái chung
-        gameState.setPlayerName(s.playerName);
-        gameState.setLives(s.lives);
-        gameState.setScore(s.score);
-        gameState.setScoreMultiplier(s.scoreMultiplier);
-        gameState.setCurrentLevelIndex(s.currentLevelIndex);
-        gameState.setBarrierActive(s.barrierActive, s.barrierY);
-        gameState.setGameStarted(true);
-        gameState.setRunning(true);
-        gameState.setShowMessage(false);
-        gameState.setPauseOverlay(false);
-        gameState.setConfirmOverlay(false);
-
-        // Nạp bricks từ snapshot (bỏ qua LevelLoader)
-        entityManager.clearAll();
-        for (GameSnapshot.BrickData bd : s.bricks) {
-            Brick.Type tp;
-            switch (bd.type) {
-                case "INDESTRUCTIBLE": tp = Brick.Type.INDESTRUCTIBLE; break;
-                case "EXPLOSIVE": tp = Brick.Type.EXPLOSIVE; break;
-                default: tp = Brick.Type.NORMAL;
-            }
-            Brick brick = new Brick(bd.x, bd.y, bd.w, bd.h, tp, bd.hits);
-            entityManager.addBrick(brick);
-        }
-
-        // Paddle
-        paddle.setWidth(s.paddleWidth);
-        /* Kéo paddle về vị trí snapshot
-         x,y của paddle trong GameObject là protected,
-         nhưng có getter để set gián tiếp bằng cách dịch chuyển
-         Chỉ cần x do y cố định gần đáy */
-        try {
-            java.lang.reflect.Field fx = GameObject.class.getDeclaredField("x");
-            fx.setAccessible(true);
-            fx.set(paddle, s.paddleX);
-            java.lang.reflect.Field fy = GameObject.class.getDeclaredField("y");
-            fy.setAccessible(true);
-            fy.set(paddle, s.paddleY);
-        } catch (Exception ignored) { /* an toàn bỏ qua nếu phản chiếu thất bại */ }
-        paddle.setHasLaser(s.paddleHasLaser);
-
-        // Balls
-        for (GameSnapshot.BallData bd : s.balls) {
-            Ball b = new Ball(bd.cx, bd.cy, bd.radius, paddle);
-            b.setBaseSpeed(bd.baseSpeed);
-            b.setVelocity(bd.vx, bd.vy);
-            b.setStuck(bd.stuckToPaddle);
-            b.setFireball(bd.fireball);
-            entityManager.addBall(b);
-        }
-        // Nếu không có bóng trong snapshot thì tạo mới để tránh lỗi
-        if (entityManager.getBalls().isEmpty()) {
-            createNewBall();
-        }
-
-        // PowerUps
-        for (GameSnapshot.PowerUpData pd : s.powerUps) {
-            PowerUp.PowerType type = PowerUp.PowerType.valueOf(pd.type);
-            entityManager.addPowerUp(new PowerUp(pd.cx, pd.cy, type));
-        }
-
-        // Bullets
-        for (GameSnapshot.BulletData bd : s.bullets) {
-            entityManager.addBullet(new Bullet(bd.cx, bd.cy));
-        }
-
-        // ActiveEffects: khôi phục kèm giá trị gốc theo chỉ số bóng
-        for (GameSnapshot.EffectData ed : s.effects) {
-            ActiveEffect ae = new ActiveEffect(PowerUp.PowerType.valueOf(ed.type), ed.remaining);
-            ae.originalPaddleWidth = ed.originalPaddleWidth;
-            ae.originalHasLaser = ed.originalHasLaser;
-            ae.originalScoreMultiplier = ed.originalScoreMultiplier;
-
-            // map theo index -> Ball
-            for (GameSnapshot.IntDouble pair : ed.originalSpeeds) {
-                int idx = pair.index;
-                if (idx >= 0 && idx < entityManager.getBalls().size()) {
-                    ae.originalSpeeds.put(entityManager.getBalls().get(idx), pair.value);
-                }
-            }
-            for (GameSnapshot.IntDouble pair : ed.originalRadii) {
-                int idx = pair.index;
-                if (idx >= 0 && idx < entityManager.getBalls().size()) {
-                    ae.originalRadii.put(entityManager.getBalls().get(idx), pair.value);
-                }
-            }
-            for (GameSnapshot.IntBool pair : ed.originalFireball) {
-                int idx = pair.index;
-                if (idx >= 0 && idx < entityManager.getBalls().size()) {
-                    ae.originalFireball.put(entityManager.getBalls().get(idx), pair.value);
-                }
-            }
-            entityManager.addActiveEffect(ae);
-        }
-
-        // Đồng bộ highScore để HUD hiển thị đúng sau khi load
-        syncHighScoreFromManager();
-
-        return true;
     }
 
     // Vòng lặp Update chính (đã gọn gàng hơn)
@@ -255,6 +270,9 @@ public class Game extends Pane {
         // 1. Cập nhật vị trí các đối tượng
         paddle.update(dt);
         entityManager.updateAll(dt); // Cập nhật đạn, power-up rơi, HUD...
+        for (Ball b : entityManager.getBalls()) {
+            b.update(dt);
+        }
 
         // 2. Xử lý Va chạm
         CollisionResult collisionResult = collisionManager.handleCollisions(
@@ -278,29 +296,99 @@ public class Game extends Pane {
 
         // 3c. Xử lý Qua màn
         if (collisionResult.allDestructibleBricksCleared) {
-            nextLevel();
+            boolean bossDead = !bossLevel || (boss != null && boss.isDead());
+            if (bossDead) {
+                nextLevel();
+            }
+        }
+
+        // cập nhật gạch di chuyển và không đè lên nhau
+        List<Brick> bricks = entityManager.getBricks();
+        for (int i = 0; i < bricks.size(); i++) {
+            Brick brick = bricks.get(i);
+            if (brick instanceof MovingBrick mb) {
+                mb.update(dt);
+                // Giới hạn biên
+                if (mb.getX() <= 0) {
+                    mb.setX(0);
+                    mb.setDirection(1);
+                } else if (mb.getX() + mb.getWidth() >= width) {
+                    mb.setX(width - mb.getWidth());
+                    mb.setDirection(-1);
+                }
+
+                // Kiểm tra va chạm với các gạch khác
+                for (int j = i + 1; j < bricks.size(); j++) {
+                    Brick other = bricks.get(j);
+                    if (other instanceof MovingBrick ob) {
+                        if (mb.getBounds().intersects(ob.getBounds())) {
+                            // Hai viên gạch chạm nhau → ép sát rồi đổi hướng
+                            if (mb.getX() < ob.getX()) {
+                                mb.setX(ob.getX() - mb.getWidth());
+                                mb.setDirection(-1);
+                                ob.setDirection(1);
+                            } else {
+                                mb.setX(ob.getX() + ob.getWidth());
+                                mb.setDirection(1);
+                                ob.setDirection(-1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        // Cập nhật boss
+        if (bossLevel && boss != null) {
+            boss.update(dt);
+
+            for (Ball b : entityManager.getBalls()) {
+                Boss.CollisionSide side = boss.checkCollision(b);
+                if (side != Boss.CollisionSide.NONE) {
+                    boss.takeDamage(5);
+                    switch (side) {
+                        case LEFT -> {
+                            b.reverseX();
+                            b.setX(boss.getX() - b.getRadius());
+                        }
+                        case RIGHT -> {
+                            b.reverseX();
+                            b.setX(boss.getX() + boss.getWidth() + b.getRadius());
+                        }
+                        case TOP -> {
+                            b.reverseY();
+                            b.setY(boss.getY() - b.getRadius());
+                        }
+                        case BOTTOM -> {
+                            b.reverseY();
+                            b.setY(boss.getY() + boss.getHeight() + b.getRadius());
+                        }
+                    }
+                }
+            }
+
+
+            //Đạn boss trúng paddle
+            List<BossBullet> toRemove = new ArrayList<>();
+            
+            for (BossBullet bullet : boss.getBullets()) {
+                if (bullet.collidesWith(paddle)) {
+                    handleBallLost();
+                    toRemove.add(bullet);
+                }
+            }
+
+            boss.getBullets().removeAll(toRemove);
         }
 
         // 4. Cập nhật các Hiệu ứng (kiểm tra hết hạn)
         powerUpManager.updateActiveEffects(dt, entityManager, gameState, paddle);
-
-        // 5. Autosave định kỳ khi đang chạy (mỗi 1 giây)
-        autosaveTimer += dt;
-        if (autosaveTimer >= 1.0) {
-            autosaveImmediate();
-            autosaveTimer = 0;
-        }
-
-        // Cập nhật highScore trong HUD là max(highScore hiện tại, score đang chơi)
-        // (chỉ hiển thị; ghi file thật sự thực hiện ở onGameEnd)
-        if (gameState.getScore() > gameState.getHighScore()) {
-            gameState.setHighScore(gameState.getScore());
-        }
     }
 
     // Vòng lặp Render chính
     private void render() {
-        gameRenderer.render(gameState, entityManager, paddle);
+        gameRenderer.render(gameState, entityManager, paddle, boss, bossLevel);
     }
 
     // --- Logic Luồng Game (Game Flow) ---
@@ -312,26 +400,47 @@ public class Game extends Pane {
             gameState.setRunning(false);
             gameState.setWin(false);
             gameState.setShowMessage(true);
-            onGameEnd(); // Cập nhật HighScore + dọn save
+            pause();
         } else {
             // Mất 1 mạng, tạo bóng mới
             createNewBall();
         }
     }
 
-    private void nextLevel() {
-        gameState.incrementLevelIndex();
-        if (gameState.getCurrentLevelIndex() >= levelFiles.length) {
-            // Thắng toàn bộ game
-            gameState.setRunning(false);
-            gameState.setWin(true);
-            gameState.setShowMessage(true);
-            onGameEnd(); // Cập nhật HighScore + dọn save
+    public void loadNextLevel() {
+        gameState.setLevelComplete(false); // Reset cờ
+        int nextLevelIndex = gameState.getCurrentLevelIndex() + 1;
+
+        if (nextLevelIndex >= levelFiles.length) {
+            gameState.setGameComplete(true); // Đặt cờ
+            pause(); // Dừng game (sẽ trigger UI trong GameContainer)
         } else {
-            // Tải level tiếp theo
-            loadLevel(gameState.getCurrentLevelIndex());
-            createNewBall(); // Tạo bóng mới cho màn mới
+            // Tải level tiếp theo (dựa trên switch)
+            switch (nextLevelIndex) {
+                case 1: startLevel2(); break;
+                case 2: startLevel3(); break;
+                case 3: startLevel4(); break;
+                case 4: startLevel5(); break;
+                case 5: startLevel6(); break;
+                default: startNewGame();
+            }
+            resume(); // Bắt đầu màn mới
         }
+    }
+
+    /**
+     * Hàm nextLevel() cũ giờ chỉ có nhiệm vụ set cờ và Pause
+     */
+    private void nextLevel() {
+        // Kiểm tra xem đây có phải màn cuối không
+        if (gameState.getCurrentLevelIndex() >= levelFiles.length - 1) {
+            // Đây là màn cuối (Level 6)
+            gameState.setGameComplete(true);
+        } else {
+            // Đây chỉ là thắng màn thường
+            gameState.setLevelComplete(true); // Đặt cờ
+        }
+        pause(); // Dừng game (sẽ trigger onPauseCallback trong GameContainer)
     }
 
     // Tạo bóng mới và dán vào paddle
@@ -354,6 +463,12 @@ public class Game extends Pane {
             entityManager.clearBricks(); // Xóa gạch cũ
             entityManager.getBricks().addAll(ld.bricks);
             gameState.setCurrentLevelIndex(levelIndex);
+            //Tạo boss
+            if (ld.hasBoss) {
+                boss = new Boss(width / 2 - 100, 50, 200, 60, 100, width - 30);
+                bossLevel = true;
+            }
+
         } catch (IOException ex) {
             System.err.println("Failed to load level: " + levelFiles[levelIndex]);
             // (Có thể thêm logic tạo level mặc định ở đây)
@@ -369,50 +484,24 @@ public class Game extends Pane {
         entityManager.addBullet(new Bullet(pos[2], pos[3]));
     }
 
-    // --- Xử lý Input ---
+    // Xử lý Input
 
     private void handleKeyPressed(KeyCode code) {
-        // Xử lý Confirm (Y/N)
-        if (gameState.isConfirmOverlay()) {
-            if (code == KeyCode.N) {
-                gameState.setConfirmOverlay(false);
-                gameState.setRunning(true); // Tiếp tục game
-            } else if (code == KeyCode.Y) {
-                // Autosave trước khi thoát (đảm bảo Continue)
-                autosaveImmediate();
-                Platform.exit(); // Thoát game
-            }
-            return;
-        }
-
-        // Xử lý Pause (P / O)
-        if (gameState.isPauseOverlay()) {
-            if (code == KeyCode.P) resume();
-            else if (code == KeyCode.O) { // 'O' để về Menu
-                pause(); // Đảm bảo game dừng
-                // Autosave khi về menu
-                autosaveImmediate();
-                returnToMenuCallback.run();
-            }
-            return;
-        }
-
         // Xử lý khi game đang dừng (Game Over / Win)
         if (!gameState.isRunning()) {
-            if (code == KeyCode.S) {
-                startNewGame(gameState.getPlayerName()); // Giữ lại tên hiện tại
+            if (gameState.isPauseOverlay()) {
+                if (code == KeyCode.P) resume();
+                else if (code == KeyCode.M) { // 'M' để về Menu
+                    returnToMenu();
+                }
+                return;
             }
-            else if (code == KeyCode.R) {
-                // Trước khi quay menu, dọn save của ván đã kết thúc
-                if (saveManager != null) saveManager.deleteSave();
-                returnToMenuCallback.run();
-            }
-            return; // Không xử lý input game khi đang dừng
+            return;
         }
 
         // Xử lý input khi game đang chạy
         switch (code) {
-            case SPACE:
+            case SPACE :
                 if (paddle.hasLaser()) tryShoot();
                 for (Ball bl : entityManager.getBalls()) {
                     if (bl.isStuck()) bl.launch();
@@ -420,11 +509,12 @@ public class Game extends Pane {
                 break;
             case P:
                 if (gameState.isRunning()) pause();
-                else resume();
                 break;
             case ESCAPE:
-                gameState.setConfirmOverlay(true);
-                gameState.setRunning(false);
+                if (gameState.isRunning()) {
+                    gameState.setConfirmOverlay(true); // Đặt cờ
+                    pause(); // Dừng game VÀ trigger onPauseCallback
+                }
                 break;
             default:
                 // Các phím di chuyển
@@ -433,123 +523,33 @@ public class Game extends Pane {
         }
     }
 
-    // Tạo snapshot để lưu (Save)
-    private GameSnapshot createSnapshot() {
-        GameSnapshot s = new GameSnapshot();
-        // Thông tin chung
-        s.playerName = gameState.getPlayerName();
-        s.lives = gameState.getLives();
-        s.score = gameState.getScore();
-        s.scoreMultiplier = gameState.getScoreMultiplier();
-        s.currentLevelIndex = gameState.getCurrentLevelIndex();
-        s.barrierActive = gameState.isBarrierActive();
-        s.barrierY = gameState.getBarrierY();
-
-        // Paddle
-        s.paddleX = paddle.getX();
-        s.paddleY = paddle.getY();
-        s.paddleWidth = paddle.getWidth();
-        s.paddleHeight = paddle.getHeight();
-        s.paddleHasLaser = paddle.hasLaser();
-
-        // Balls
-        for (int i = 0; i < entityManager.getBalls().size(); i++) {
-            Ball b = entityManager.getBalls().get(i);
-            GameSnapshot.BallData bd = new GameSnapshot.BallData();
-            bd.cx = b.centerX();
-            bd.cy = b.centerY();
-            bd.radius = b.getRadius();
-            bd.vx = b.getVx(); // [THÊM] đã bổ sung getter
-            bd.vy = b.getVy();
-            bd.baseSpeed = b.getBaseSpeed();
-            bd.stuckToPaddle = b.isStuck();
-            bd.fireball = b.isFireball();
-            s.balls.add(bd);
+    /**
+     * Chuyển đổi trạng thái Pause/Resume.
+     * Được gọi bởi nút bấm UI bên ngoài (từ GameContainer).
+     */
+    public void togglePause() {
+        if (gameState.isRunning()) {
+            pause(); // Nếu đang chạy -> Dừng
+        } else if (gameState.isPauseOverlay()) {
+            resume(); // Nếu đang dừng (ở màn hình Pause) -> Tiếp tục
         }
+        // Nếu đang ở màn hình Confirm (Y/N) hoặc Game Over -> Không làm gì
 
-        // Bricks
-        for (Brick br : entityManager.getBricks()) {
-            GameSnapshot.BrickData bd = new GameSnapshot.BrickData();
-            bd.x = br.getX(); bd.y = br.getY();
-            bd.w = br.getWidth(); bd.h = br.getHeight();
-            bd.type = br.getType().name();
-            bd.hits = br.getHits();
-            s.bricks.add(bd);
-        }
-
-        // PowerUps
-        for (PowerUp pu : entityManager.getPowerUps()) {
-            GameSnapshot.PowerUpData pd = new GameSnapshot.PowerUpData();
-            pd.cx = pu.x; pd.cy = pu.y;
-            pd.type = pu.type.name();
-            s.powerUps.add(pd);
-        }
-
-        // Bullets
-        for (Bullet bu : entityManager.getBullets()) {
-            GameSnapshot.BulletData bd = new GameSnapshot.BulletData();
-            bd.cx = bu.x + bu.w/2.0; // lưu theo tâm
-            bd.cy = bu.y + bu.h/2.0;
-            s.bullets.add(bd);
-        }
-
-        // ActiveEffects – lưu cả giá trị gốc
-        for (ActiveEffect ae : entityManager.getActiveEffects()) {
-            GameSnapshot.EffectData ed = new GameSnapshot.EffectData();
-            ed.type = ae.type.name();
-            ed.remaining = ae.remaining;
-            ed.originalPaddleWidth = ae.originalPaddleWidth;
-            ed.originalHasLaser = ae.originalHasLaser;
-            ed.originalScoreMultiplier = ae.originalScoreMultiplier;
-
-            // map Ball->index
-            for (int idx = 0; idx < entityManager.getBalls().size(); idx++) {
-                Ball b = entityManager.getBalls().get(idx);
-                if (ae.originalSpeeds.containsKey(b)) {
-                    ed.originalSpeeds.add(new GameSnapshot.IntDouble(idx, ae.originalSpeeds.get(b)));
-                }
-                if (ae.originalRadii.containsKey(b)) {
-                    ed.originalRadii.add(new GameSnapshot.IntDouble(idx, ae.originalRadii.get(b)));
-                }
-                if (ae.originalFireball.containsKey(b)) {
-                    ed.originalFireball.add(new GameSnapshot.IntBool(idx, ae.originalFireball.get(b)));
-                }
-            }
-            s.effects.add(ed);
-        }
-
-        return s;
+        this.requestFocus(); // Yêu cầu focus lại Pane game để nhận phím
     }
 
-    // Lưu ngay snapshot (dùng khi pause/confirm/định kỳ)
-    private void autosaveImmediate() {
-        if (saveManager == null) return;
-        // Không lưu nếu đang ở màn kết thúc
-        if (gameState.isShowMessage()) return;
-        saveManager.save(createSnapshot());
-    }
+    /**
+     * Mở cài đặt (tạm thời chỉ pause và in ra console).
+     * Được gọi bởi nút bấm UI bên ngoài (từ GameContainer).
+     */
+    public void openSettings() {
+        if (gameState.isRunning()) {
+            pause(); // Dừng game
+            // (Sau này sẽ thêm logic mở cửa sổ settings)
+            System.out.println("Setting clicked - Not implemented");
+        }
+        // Nếu game đã pause, không làm gì thêm (tránh gọi onPauseCallback nhiều lần)
 
-    // Khi trận đấu kết thúc: cập nhật HighScore + xóa save (không Continue vào ván đã kết thúc)
-    private void onGameEnd() {
-        if (highScoreManager != null) {
-            if (highScoreManager.isTop10Candidate(gameState.getScore())) {
-                highScoreManager.submitScore(gameState.getPlayerName(), gameState.getScore());
-            }
-            // Đồng bộ lại highScore sau khi ghi nhận điểm để HUD/menu luôn mới nhất
-            syncHighScoreFromManager();
-        }
-        if (saveManager != null) {
-            saveManager.deleteSave();
-        }
-    }
-
-    // Đọc Top1 từ HighScoreManager và đặt vào GameState để HUD vẽ "High"
-    private void syncHighScoreFromManager() {
-        if (highScoreManager == null) return;
-        int top = 0;
-        for (HighScoreManager.Entry e : highScoreManager.getTop10()) {
-            if (e.score > top) top = e.score;
-        }
-        gameState.setHighScore(top);
+        this.requestFocus(); // Yêu cầu focus lại
     }
 }

@@ -14,6 +14,8 @@ import java.util.List;
  * 1-9: gạch bình thường với số hits tương ứng
  * X: gạch không thể phá (indestructible)
  * E: gạch nổ (explosive)
+ * M: gạch di chuyển
+ * B: boss
  */
 
 public class LevelLoader {
@@ -29,8 +31,13 @@ public class LevelLoader {
 
         while ((line = br.readLine()) != null) {
             line = line.trim();
-            if (line.isEmpty()) continue;
-            // dòng lưới
+            if (line.isEmpty() || line.startsWith("#")) {
+                // Nếu dòng chứa '#boss' thì bật cờ boss
+                if (line.toLowerCase().contains("boss")) {
+                    data.hasBoss = true;
+                }
+                continue;
+            }
             grid.add(line);
         }
 
@@ -51,12 +58,16 @@ public class LevelLoader {
             for (int c = 0; c < Math.min(cols, row.length()); c++) {
                 char ch = row.charAt(c);
                 if (ch == '0') continue; // empty
-                Brick brick;
+                Brick brick = null;
                 if (ch == 'X' || ch == 'x') {
                     brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, Brick.Type.INDESTRUCTIBLE, Integer.MAX_VALUE);
                 } else if (ch == 'E' || ch == 'e') {
                     // explosive with 1 hit
                     brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, Brick.Type.EXPLOSIVE, 1);
+                } else if (ch == 'M') {
+                    brick = new MovingBrick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, 1 ,0, 885);
+                } else if (ch == 'B' || ch == 'b') {
+                    data.hasBoss = true;
                 } else if (Character.isDigit(ch)) {
                     int hits = Character.getNumericValue(ch);
                     brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, hits);
@@ -64,7 +75,12 @@ public class LevelLoader {
                     // unknown char -> treat as normal 1-hit
                     brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, 1);
                 }
-                data.bricks.add(brick);
+                if (brick != null) {
+                    data.bricks.add(brick);
+                }
+                if (r % 2 == 1 && brick instanceof MovingBrick mb) {
+                    mb.setDirection(-1);
+                }
             }
         }
 

@@ -12,55 +12,71 @@ public class Main extends Application {
 
         // Holder để tham chiếu scene trong callback Game (do lambda cần biến final/effectively final)
         class MenuSceneHolder { Scene scene; }
+        class LevelSceneHolder { Scene scene; }
         MenuSceneHolder menuSceneHolder = new MenuSceneHolder();
-        // Holder cho MenuPane để có thể refresh leaderboard từ callback
-        class MenuPaneHolder { MenuPane pane; }
-        MenuPaneHolder menuPaneHolder = new MenuPaneHolder();
-
-        // Thêm khởi tạo Save/Load + HighScore
-        SaveManager saveManager = new SaveManager();              // Quản lý lưu/tải
-        HighScoreManager highScoreManager = new HighScoreManager(); // Bảng xếp hạng Top 10
+        LevelSceneHolder levelSceneHolder = new LevelSceneHolder();
 
         // Tạo Game trước nhưng không bắt đầu trận
-        // Callback trả về menu -- chạy trên JavaFX thread, đồng thời refresh bảng xếp hạng
-        Game game = new Game(width, height, () -> {
-            Platform.runLater(() -> {
-                if (menuPaneHolder.pane != null) {
-                    menuPaneHolder.pane.refreshHighScores(); // Cập nhật Top 10 khi quay menu
-                }
-                stage.setScene(menuSceneHolder.scene);
-            });
-        }, saveManager, highScoreManager);
-        Scene gameScene = new Scene(game, width, height);
+        Game game = new Game(
+                width,
+                height,
+                () -> Platform.runLater(() -> stage.setScene(menuSceneHolder.scene)),   // callback về menu
+                () -> Platform.runLater(() -> stage.setScene(levelSceneHolder.scene))   // callback về màn chọn level
+        );
 
-        // Tạo MenuPane (bản mới có nhập tên + leaderboard Top 10)
+        GameContainer gameContainer = new GameContainer(game);
+
+        Scene gameScene = new Scene(gameContainer, width, height);
+
+        // Tạo MenuPane riêng và truyền các callback
         MenuPane menuPane = new MenuPane(
-                highScoreManager,
-                // Start callback có tên người chơi
-                (playerName) -> {
-                    game.startNewGame(playerName); // Truyền tên vào GameState
-                    stage.setScene(gameScene);
-                    game.requestFocus();
-                },
-                // Continue callback: load từ save nếu có, nếu không sẽ startNewGame như cũ
+                game,
+                // Khi nhấn "Start Game" -> Mở chọn Level
                 () -> {
-                    if (saveManager.hasSave()) {
-                        boolean ok = game.loadFromSave();
-                        if (!ok) {
-                            // nếu load lỗi, fallback sang ván mới
-                            game.startNewGame("Player");
-                        }
-                    } else {
-                        if (game.isGameStarted()) game.resume();
-                        else game.startNewGame("Player");
-                    }
+                    LevelSelectPane levelSelectPane = new LevelSelectPane(
+                            () -> { // Chọn Level 1
+                                game.startNewGame();
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> { // Chọn Level 2
+                                game.startLevel2();
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> { // Chọn Level 3
+                                game.startLevel3();
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> { // Chọn Level 4
+                                game.startLevel4();
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> { // Chọn Level 5
+                                game.startLevel5();
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> {
+                                game.startLevel6(); // chọn Level 6
+                                stage.setScene(gameScene);
+                                game.requestFocus();
+                            },
+                            () -> stage.setScene(menuSceneHolder.scene) // Nút "Trở lại"
+                    );
+                    stage.setScene(new Scene(levelSelectPane, width, height));
+                },
+                // Continue callback
+                () -> {
+                    if (game.isGameStarted()) game.pause();
                     stage.setScene(gameScene);
                     game.requestFocus();
                 },
                 // Exit callback
-                Platform::exit
+                () -> Platform.exit()
         );
-        menuPaneHolder.pane = menuPane;
 
         Scene menuScene = new Scene(menuPane, width, height);
         menuSceneHolder.scene = menuScene;
@@ -76,5 +92,4 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
-
 }

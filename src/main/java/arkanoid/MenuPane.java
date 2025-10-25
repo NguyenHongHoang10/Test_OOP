@@ -1,5 +1,6 @@
 package arkanoid;
 
+import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -7,29 +8,24 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ListView;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
+import javafx.util.Duration;
 
 public class MenuPane extends VBox {
+    private final Game game;
+
     private final Button startBtn;
     private final Button continueBtn;
     private final Button exitBtn;
+    private final Button introductionBtn;
+    private final Button leaderboardBtn;
+    private final Button settingBtn;
 
-    // Thêm ô nhập tên người chơi (player name input)
-    private final TextField nameField;
+    private final Text continueErrorText;
 
-    // Quản lý và UI cho bảng xếp hạng Top 10
-    private HighScoreManager highScoreManager;
-    private ListView<String> leaderboardList;       // danh sách Top 10
-    private Label leaderboardTitle;                 // tiêu đề "Top 10 High Scores"
 
-    public MenuPane(Runnable startCallback, Runnable continueCallback, Runnable exitCallback) {
+    public MenuPane(Game game, Runnable startCallback, Runnable continueCallback, Runnable exitCallback) {
         super(12);
+        this.game = game;
         setAlignment(Pos.CENTER);
         setPadding(new Insets(20));
         setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
@@ -39,14 +35,7 @@ public class MenuPane extends VBox {
         title.setFill(Color.BLACK);
         title.setFont(Font.font(48));
 
-        // Thêm hàng nhập tên (startCallback sẽ không nhận tên)
-        Label nameLabel = new Label("Player Name:");
-        nameLabel.setFont(Font.font(16));
-        nameField = new TextField();
-        nameField.setPromptText("Nhập tên người chơi...");
-        nameField.setMaxWidth(260);
-
-        startBtn = new Button("▶ Start Game");
+        startBtn = new Button("▶ Start New Game");
         startBtn.setFont(Font.font(24));
         startBtn.setPrefWidth(240);
         startBtn.setOnAction(e -> startCallback.run());
@@ -54,78 +43,84 @@ public class MenuPane extends VBox {
         continueBtn = new Button("Continue");
         continueBtn.setFont(Font.font(24));
         continueBtn.setPrefWidth(240);
-        continueBtn.setOnAction(e -> continueCallback.run());
+        continueBtn.setOnAction(e -> {
+            if (canContinue()) {
+                continueCallback.run(); // Chạy hành động như cũ
+            } else {
+                showContinueError(); // Hiển thị lỗi
+            }
+    });
+
+        // Nút Introduction
+        introductionBtn = new Button("ℹ Introduction");
+        introductionBtn.setFont(Font.font(24));
+        introductionBtn.setPrefWidth(240);
+        introductionBtn.setOnAction(e -> {
+            // Hiện tại chưa làm gì
+            System.out.println("Introduction clicked - Not implemented");
+        });
+
+        // Nút Leaderboard
+        leaderboardBtn = new Button("🏆 Leaderboard");
+        leaderboardBtn.setFont(Font.font(24));
+        leaderboardBtn.setPrefWidth(240);
+        leaderboardBtn.setOnAction(e -> {
+            // Hiện tại chưa làm gì
+            System.out.println("Leaderboard clicked - Not implemented");
+        });
+
+        // Nút Setting
+        settingBtn = new Button("⚙ Setting");
+        settingBtn.setFont(Font.font(24));
+        settingBtn.setPrefWidth(240);
+        settingBtn.setOnAction(e -> {
+            // Hiện tại chưa làm gì
+            System.out.println("Setting clicked - Not implemented");
+        });
 
         exitBtn = new Button("❌ Exit");
         exitBtn.setFont(Font.font(24));
         exitBtn.setPrefWidth(240);
         exitBtn.setOnAction(e -> exitCallback.run());
 
-        getChildren().addAll(title, nameLabel, nameField, startBtn, continueBtn, exitBtn);
+        continueErrorText = new Text("Nothing to continue");
+        continueErrorText.setFont(Font.font(16));
+        continueErrorText.setFill(Color.ORANGERED);
+        continueErrorText.setVisible(false); // Ẩn lúc đầu
+
+        getChildren().addAll(title, startBtn, continueBtn,introductionBtn,
+                leaderboardBtn, settingBtn, exitBtn, continueErrorText);
     }
 
-    // Thêm constructor mới: truyền thẳng tên sang startCallbackWithName (đề xuất dùng)
-    public MenuPane(Consumer<String> startCallbackWithName, Runnable continueCallback, Runnable exitCallback) {
-        this(() -> {}, continueCallback, exitCallback);
-        // ghi đè lại hành vi nút start để chuyển tên
-        startBtn.setOnAction(e -> {
-            String name = getPlayerName();
-            startCallbackWithName.accept(name);
-        });
-    }
-
-    // Thêm Constructor mới: truyền HighScoreManager để hiển thị Top 10
-    public MenuPane(HighScoreManager highScoreManager,
-                    Consumer<String> startCallbackWithName,
-                    Runnable continueCallback,
-                    Runnable exitCallback) {
-        this(startCallbackWithName, continueCallback, exitCallback);
-        this.highScoreManager = highScoreManager;
-        createLeaderboardUI();   // Tạo UI "Top 10 High Scores"
-        refreshHighScores();     // Nạp dữ liệu ban đầu
-    }
-
-    // Thêm phần lấy tên người chơi từ ô nhập
-    public String getPlayerName() {
-        String s = nameField.getText();
-        if (s == null || s.trim().isEmpty()) return "Player";
-        return s.trim();
-    }
-
-    // Khởi tạo khu vực Leaderboard (Top 10)
-    private void createLeaderboardUI() {
-        leaderboardTitle = new Label("Top 10 High Scores");
-        leaderboardTitle.setFont(Font.font(20));
-        leaderboardTitle.setTextFill(Color.WHITE);
-
-        leaderboardList = new ListView<>();
-        leaderboardList.setPrefSize(360, 260); // kích thước hiển thị
-        leaderboardList.setFocusTraversable(false); // tránh chiếm focus phím
-
-        // chèn vào cuối menu
-        getChildren().addAll(leaderboardTitle, leaderboardList);
-    }
-
-    // Cập nhật danh sách Top 10 từ HighScoreManager
-    public void refreshHighScores() {
-        if (leaderboardList == null) return;
-        List<String> lines = new ArrayList<>();
-        if (highScoreManager != null) {
-            List<HighScoreManager.Entry> top = highScoreManager.getTop10();
-            if (top.isEmpty()) {
-                lines.add("Chưa có điểm nào");
-            } else {
-                int rank = 1;
-                for (HighScoreManager.Entry e : top) {
-                    // Định dạng: " 1) Tên .......... 12345"
-                    String row = String.format("%2d) %-18s %7d", rank, e.name, e.score);
-                    lines.add(row);
-                    rank++;
-                }
+        /**
+         * Kiểm tra trạng thái của Game để quyết định có thể "Continue" hay không.
+         */
+        private boolean canContinue() {
+            // 1. Nếu game chưa bao giờ bắt đầu -> không thể
+            if (!game.isGameStarted()) {
+                return false;
             }
-        } else {
-            lines.add("Chưa cấu hình HighScoreManager");
+
+            GameState state = game.getGameState();
+
+            // 2. Nếu đang ở màn hình "Game Over" (showMessage) hoặc "Level Complete" (levelComplete)
+            // (Chúng ta dùng 'isShowMessage' vì nó được set=true khi Game Over hoặc Win màn cuối)
+            if (state.isShowMessage() || state.isLevelComplete()) {
+                return false;
+            }
+
+            // 3. Nếu game đã bắt đầu VÀ không ở trạng thái kết thúc -> có thể
+            return true;
         }
-        leaderboardList.getItems().setAll(lines);
-    }
+
+        /**
+         * Hiển thị thông báo lỗi "Nothing to continue" trong 3 giây.
+         */
+        private void showContinueError() {
+            continueErrorText.setVisible(true);
+            // Tạo một đối tượng PauseTransition để ẩn text sau 3 giây
+            PauseTransition visiblePause = new PauseTransition(Duration.seconds(3));
+            visiblePause.setOnFinished(event -> continueErrorText.setVisible(false));
+            visiblePause.play();
+        }
 }
