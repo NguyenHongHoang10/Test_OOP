@@ -27,6 +27,16 @@ public class GameRenderer {
         gc.fillText("Score: " + state.getScore(), 10, 22);
         gc.fillText("Lives: " + state.getLives(), 150, 22);
 
+        // Cập nhật highscore trong RAM nếu score hiện tại vượt qua
+        HighScoreService svc = HighScoreService.get();
+        svc.maybeUpdateBest(state.getScore());
+        int best = svc.getCachedBest();
+
+        int levelHuman = Math.max(1, state.getCurrentLevelIndex() + 1);
+        gc.fillText("HighScore: " + best, 300, 22);
+        gc.fillText("Level: " + levelHuman, 470, 22);
+
+
         // 3. Vẽ các đối tượng game
         paddle.render(gc);
         for (Ball bl : entities.getBalls()) bl.render(gc);

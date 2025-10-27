@@ -371,15 +371,22 @@ public class Game extends Pane {
 
             //Đạn boss trúng paddle
             List<BossBullet> toRemove = new ArrayList<>();
-            
+            boolean bossHitThisFrame = false;
+
             for (BossBullet bullet : boss.getBullets()) {
                 if (bullet.collidesWith(paddle)) {
-                    handleBallLost();
-                    toRemove.add(bullet);
+                    bossHitThisFrame = true;   // ghi nhận có ít nhất 1 viên trúng
+                    toRemove.add(bullet);      // xóa các viên trúng để tránh trừ tiếp ở frame sau
                 }
             }
 
             boss.getBullets().removeAll(toRemove);
+
+            // Chỉ trừ 1 mạng cho frame này, dù có nhiều viên trúng
+            if (bossHitThisFrame) {
+                handleBallLost();
+            }
+
         }
 
         // 4. Cập nhật các Hiệu ứng (kiểm tra hết hạn)

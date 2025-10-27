@@ -65,6 +65,8 @@ public class GameState {
     public void setGameComplete(boolean complete) { this.gameComplete = complete; }
     public void incrementLevelIndex() { this.currentLevelIndex++; }
 
+    public void setGameStarted(boolean gameStarted) { this.gameStarted = gameStarted; }
+
     public void resetForNewGame() {
         lives = 3;
         score = 0;

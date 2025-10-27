@@ -1,9 +1,16 @@
 package arkanoid;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class Main extends Application {
     @Override
@@ -16,6 +23,9 @@ public class Main extends Application {
         MenuSceneHolder menuSceneHolder = new MenuSceneHolder();
         LevelSceneHolder levelSceneHolder = new LevelSceneHolder();
 
+        // Khai báo biến HighScore service
+        HighScoreService highScoreService = HighScoreService.get();
+
         // Tạo Game trước nhưng không bắt đầu trận
         Game game = new Game(
                 width,
@@ -25,10 +35,10 @@ public class Main extends Application {
         );
 
         GameContainer gameContainer = new GameContainer(game);
-
         Scene gameScene = new Scene(gameContainer, width, height);
 
-        // Tạo MenuPane riêng và truyền các callback
+
+        // Dùng constructor mới: truyền continueSavedCallback
         MenuPane menuPane = new MenuPane(
                 game,
                 // Khi nhấn "Start Game" -> Mở chọn Level
@@ -74,8 +84,26 @@ public class Main extends Application {
                     stage.setScene(gameScene);
                     game.requestFocus();
                 },
-                // Exit callback
-                () -> Platform.exit()
+                // Continue (chưa có session): load từ file và vào game chờ SPACE (không overlay)
+                () -> {
+                    stage.setScene(gameScene);
+                    boolean ok = SaveLoad.get().loadIntoAndPrepareContinue(game);
+                    if (!ok) {
+                        // Không có file hợp lệ → quay lại menu (tuỳ chọn)
+                        stage.setScene(menuSceneHolder.scene);
+                    }
+                },
+                // LeaderBoard
+                () -> {
+                    Scene lb = HighScoreUI.createLeaderboardScene(width, height, highScoreService,
+                            () -> stage.setScene(menuSceneHolder.scene));
+                    stage.setScene(lb);
+                },
+                // Exit: Lưu rồi thoát
+                () -> {
+                    SaveLoad.get().save(game);
+                    Platform.exit();
+                }
         );
 
         Scene menuScene = new Scene(menuPane, width, height);
@@ -85,6 +113,34 @@ public class Main extends Application {
         stage.setTitle("Arkanoid - JavaFX OOP");
         stage.setScene(menuScene);
         stage.setResizable(false);
+
+        // Lưu khi đóng cửa sổ
+        stage.setOnCloseRequest(e -> {
+            try { SaveLoad.get().save(game); } catch (Exception ignored) {}
+        });
+
+        // Khi thắng Level 6 (gameComplete) hoặc Game Over, nếu lọt Top 10 thì hiện overlay nhập tên
+        final boolean[] promptedThisRun = { false };
+        Timeline watcher = new Timeline(new KeyFrame(Duration.millis(250), ev -> {
+            GameState s = game.getGameState();
+            boolean ended = s.isGameComplete() || (s.getLives() <= 0 && s.isShowMessage());
+            if (!promptedThisRun[0] && ended) {
+                int score = s.getScore();
+                boolean shown = HighScoreUI.promptNameIfQualified(
+                        gameContainer, score, highScoreService,
+                        () -> game.pause() // lưu xong thì hiện Restart/Menu
+                );
+                // Dù có hiển thị hay không, ghi nhận đã xử lý để không lặp
+                promptedThisRun[0] = true;
+            }
+            // Reset cờ khi ván mới thực sự chạy
+            if (s.isRunning() && s.getLives() > 0 && !s.isLevelComplete() && !s.isGameComplete() && !s.isShowMessage()) {
+                promptedThisRun[0] = false;
+            }
+        }));
+        watcher.setCycleCount(Timeline.INDEFINITE);
+        watcher.play();
+
         stage.show();
         game.requestFocus(); // để nhận input
     }

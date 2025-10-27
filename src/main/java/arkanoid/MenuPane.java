@@ -22,8 +22,29 @@ public class MenuPane extends VBox {
 
     private final Text continueErrorText;
 
+    // Giữ các Constructor cũ để tương thích
 
+    // Constructor 4 tham số không truyền continueSavedCallback và leaderboardCallback
     public MenuPane(Game game, Runnable startCallback, Runnable continueCallback, Runnable exitCallback) {
+        this(game, startCallback, continueCallback, null, null, exitCallback);
+    }
+
+    // Constructor 5 tham số không truyền leaderboardCallback
+    public MenuPane(Game game,
+                    Runnable startCallback,
+                    Runnable continueCallback,
+                    Runnable continueSavedCallback,
+                    Runnable exitCallback) {
+        this(game, startCallback, continueCallback, continueSavedCallback, null, exitCallback);
+    }
+
+    // Constructor 6 tham số thêm leaderboardCallback
+    public MenuPane(Game game,
+                    Runnable startCallback,
+                    Runnable continueCallback,
+                    Runnable continueSavedCallback,
+                    Runnable leaderboardCallback,
+                    Runnable exitCallback) {
         super(12);
         this.game = game;
         setAlignment(Pos.CENTER);
@@ -44,8 +65,14 @@ public class MenuPane extends VBox {
         continueBtn.setFont(Font.font(24));
         continueBtn.setPrefWidth(240);
         continueBtn.setOnAction(e -> {
+            // Nếu đang có session → tiếp tục như cũ
             if (canContinue()) {
-                continueCallback.run(); // Chạy hành động như cũ
+                continueCallback.run();
+                return;
+            }
+            // Nếu chưa có session nhưng có file save → load từ file
+            if (continueSavedCallback != null && SaveLoad.get().hasSave()) {
+                continueSavedCallback.run();
             } else {
                 showContinueError(); // Hiển thị lỗi
             }
@@ -65,8 +92,8 @@ public class MenuPane extends VBox {
         leaderboardBtn.setFont(Font.font(24));
         leaderboardBtn.setPrefWidth(240);
         leaderboardBtn.setOnAction(e -> {
-            // Hiện tại chưa làm gì
-            System.out.println("Leaderboard clicked - Not implemented");
+            if (leaderboardCallback != null) leaderboardCallback.run();
+            else System.out.println("Leaderboard clicked - Not implemented");
         });
 
         // Nút Setting
