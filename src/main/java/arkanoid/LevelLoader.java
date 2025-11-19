@@ -43,7 +43,7 @@ public class LevelLoader {
 
         br.close();
 
-        if (grid.isEmpty()) return data; // no bricks
+        if (grid.isEmpty()) return data;
 
         int rows = grid.size();
         int cols = grid.get(0).length();
@@ -57,7 +57,7 @@ public class LevelLoader {
             String row = grid.get(r);
             for (int c = 0; c < Math.min(cols, row.length()); c++) {
                 char ch = row.charAt(c);
-                if (ch == '0') continue; // empty
+                if (ch == '0') continue;
 
                 Brick brick = null;
 
@@ -84,7 +84,7 @@ public class LevelLoader {
                     int hits = Character.getNumericValue(ch);
                     brick = new Brick(x, y, w, h, hits);
                 } else {
-                    // unknown char -> treat as normal 1-hit
+                    // Ký tự khác thì coi như gạch thường 1 hit
                     brick = new Brick(x, y, w, h, 1);
                 }
 
@@ -92,7 +92,7 @@ public class LevelLoader {
                     data.bricks.add(brick);
                 }
 
-                // Gạch di chuyển xen kẽ hướng để sinh động hơn
+                // Gạch di chuyển xen kẽ hướng
                 if (r % 2 == 1 && brick instanceof MovingBrick mb) {
                     mb.setDirection(-1);
                 }

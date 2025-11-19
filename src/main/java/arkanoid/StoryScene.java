@@ -1,18 +1,12 @@
 package arkanoid;
-import javafx.scene.image.Image;
-import javafx.scene.layout.BackgroundImage;
-import javafx.scene.layout.BackgroundPosition;
-import javafx.scene.layout.BackgroundRepeat;
-import javafx.scene.layout.BackgroundSize;
+
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -23,41 +17,41 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 
-/**
- * Lớp này quản lý Scene và Animation cho màn hình cuộn cốt truyện.
- */
+
+//quản lý Scene và Animation cho màn hình cuộn cốt truyện
 public class StoryScene {
+
 
     private final Scene scene;
     private final TranslateTransition scrollAnimation;
     private final VBox storyContainer;
     private final double sceneHeight;
 
-    /**
-     * Khởi tạo Scene cuộn cốt truyện.
-     * @param width Chiều rộng màn hình
-     * @param height Chiều cao màn hình
-     * @param onFinishedCallback Hành động (Runnable) sẽ được gọi khi hiệu ứng kết thúc hoặc bị skip.
-     */
+
+    //Khởi tạo Scene cuộn cốt truyện.
     public StoryScene(double width, double height, Runnable onFinishedCallback) {
         this.sceneHeight = height;
 
-        // 1. Tạo Pane gốc
+
+        // Tạo Pane gốc
         StackPane root = new StackPane();
         root.setPrefSize(width, height);
         try {
-            // 1. Tải ảnh từ thư mục resources
+            // Tải ảnh từ thư mục resources
             String path = "/Image/Background/storyBackground.png";
             Image bgImage = new Image(getClass().getResourceAsStream(path));
+
 
             if (bgImage.isError()) {
                 throw new Exception("Lỗi khi tải ảnh: " + bgImage.getException().getMessage());
             }
 
-            // 2. Tạo đối tượng BackgroundSize (che phủ 100%)
+
+            // Tạo đối tượng BackgroundSize
             BackgroundSize bgSize = new BackgroundSize(1.0, 1.0, true, true, false, true);
 
-            // 3. Tạo BackgroundImage
+
+            //  Tạo BackgroundImage
             BackgroundImage backgroundImage = new BackgroundImage(
                     bgImage,
                     BackgroundRepeat.NO_REPEAT,
@@ -66,8 +60,10 @@ public class StoryScene {
                     bgSize
             );
 
-            // 4. Đặt nền cho StackPane (root)
+
+            // Đặt nền cho StackPane
             root.setBackground(new Background(backgroundImage));
+
 
         } catch (Exception e) {
             System.err.println("Không thể tải ảnh storyBackground.jpg. Sử dụng nền đen dự phòng.");
@@ -75,79 +71,86 @@ public class StoryScene {
             // Nền đen dự phòng
             root.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
         }
-        // Cắt (clip) để nội dung không tràn ra ngoài
+        // Cắt để nội dung không tràn ra ngoài
         root.setClip(new javafx.scene.shape.Rectangle(width, height));
 
-        // 2. Tải text từ file (resources/data/story.txt)
+
+        // Tải text từ file
         String storyContent = loadStoryText("/data/story.txt");
 
+
         Text storyText = new Text(storyContent);
-        storyText.setFont(Font.font("Arial", 28)); // Cỡ chữ (bạn có thể thay đổi)
+        storyText.setFont(Font.font("Arial", 28));
         storyText.setFill(Color.WHITE);
         storyText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
-        // SỬA LỖI (CHỐNG TRÀN): Đặt chiều rộng để text tự động xuống dòng
-        storyText.setWrappingWidth(width * 0.9); // 80% chiều rộng màn hình
 
-        // 3. Đặt Text vào VBox để dễ căn chỉnh và di chuyển
+        //Đặt chiều rộng để text tự động xuống dòng
+        storyText.setWrappingWidth(width * 0.9);
+
+
+        // Đặt Text vào VBox
         storyContainer = new VBox(storyText);
         storyContainer.setAlignment(Pos.CENTER);
         root.getChildren().add(storyContainer);
 
-        // SỬA LỖI (CHỐNG LỆCH): Căn VBox lên trên cùng (không căn giữa)
+
+        // Căn VBox lên trên cùng
         StackPane.setAlignment(storyContainer, Pos.TOP_CENTER);
 
-        // SỬA LỖI (CHỐNG NHÁY): Đặt vị trí bắt đầu ở dưới màn hình
+
+        // Đặt vị trí bắt đầu ở dưới màn hình
         storyContainer.setTranslateY(height);
 
-        // 4. Tạo Scene
+
+        // Tạo Scene
         this.scene = new Scene(root, width, height);
 
-        // 5. Tạo hiệu ứng (Animation)
+
+        // Tạo hiệu ứng
         this.scrollAnimation = new TranslateTransition();
         scrollAnimation.setNode(storyContainer);
 
-        // 6. Xử lý khi kết thúc: Gọi callback (để chuyển sang Menu)
+
+        // Xử lý khi kết thúc thì chuyển sang Menu
         scrollAnimation.setOnFinished(e -> onFinishedCallback.run());
 
-        // 7. Xử lý SKIP (nhấn phím bất kỳ)
+
+        // Xử lý skip bằng cách nhấn phím bất kỳ
         this.scene.setOnKeyPressed((KeyEvent event) -> {
-            scrollAnimation.stop(); // Dừng hiệu ứng
-            onFinishedCallback.run(); // Chuyển cảnh ngay
+            scrollAnimation.stop();
+            onFinishedCallback.run();
         });
     }
 
-    /**
-     * Trả về Scene để Main.java có thể hiển thị
-     */
+
     public Scene getScene() {
         return this.scene;
     }
 
-    /**
-     * Bắt đầu chạy hiệu ứng (gọi sau khi stage.show())
-     */
+
+    //Bắt đầu chạy hiệu ứng (gọi sau khi stage.show())
     public void play() {
-        // Chúng ta cần dùng Platform.runLater để JavaFX tính toán xong
-        // chiều cao thực tế (layout bounds) của khối text
         Platform.runLater(() -> {
             double textHeight = storyContainer.getLayoutBounds().getHeight();
+
 
             // Di chuyển đến khi text đi hết lên trên
             scrollAnimation.setToY(-textHeight);
 
+
             // Tốc độ: 60 pixels/giây (bạn có thể điều chỉnh)
             double scrollDistance = sceneHeight + textHeight;
             double scrollDurationSeconds = scrollDistance / 60.0;
+
 
             scrollAnimation.setDuration(Duration.seconds(scrollDurationSeconds));
             scrollAnimation.play();
         });
     }
 
-    /**
-     * Hàm nội bộ: Thử tải text từ file
-     */
+
+    // tải text từ file
     private String loadStoryText(String resourcePath) {
         try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
             if (is == null) {
@@ -162,3 +165,4 @@ public class StoryScene {
         }
     }
 }
+

@@ -1,8 +1,5 @@
 package arkanoid;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class GameState {
     private int lives = 3;
     private int score = 0;
@@ -11,8 +8,8 @@ public class GameState {
     private boolean win = false; // thắng hay thua
     private boolean showMessage = false; // hiển thị overlay thông báo
     private boolean gameStarted = false; // true nếu đã từng bắt đầu 1 trận
-    private boolean pauseOverlay = false; // true khi đang pause (P)
-    private boolean confirmOverlay = false; // true khi ESC hiện confirm (Y/N)
+    private boolean pauseOverlay = false; // true khi đang pause
+    private boolean confirmOverlay = false;
     private boolean settingsOverlay = false;
     private boolean barrierActive = false;
     private double barrierY = -1;
@@ -61,7 +58,9 @@ public class GameState {
         return confirmOverlay;
     }
 
-    public boolean isSettingsOverlay() { return settingsOverlay; }
+    public boolean isSettingsOverlay() {
+        return settingsOverlay;
+    }
 
     public boolean isBarrierActive() {
         return barrierActive;
@@ -133,7 +132,9 @@ public class GameState {
         this.confirmOverlay = confirmOverlay;
     }
 
-    public void setSettingsOverlay(boolean settingsOverlay) { this.settingsOverlay = settingsOverlay; }
+    public void setSettingsOverlay(boolean settingsOverlay) {
+        this.settingsOverlay = settingsOverlay;
+    }
 
     public void setBarrierActive(boolean barrierActive, double yPosition) {
         this.barrierActive = barrierActive;
@@ -174,7 +175,7 @@ public class GameState {
         confirmOverlay = false;
         barrierActive = false;
         currentLevelIndex = 0;
-        levelComplete = false; // Reset cờ
-        gameComplete = false; // Reset cờ
+        levelComplete = false;
+        gameComplete = false;
     }
 }

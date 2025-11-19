@@ -3,9 +3,7 @@ package arkanoid;
 import javafx.scene.canvas.GraphicsContext;
 
 public abstract class GameObject {
-    // Vị trí
     protected double x, y;
-    // Kích thước của đối tượng
     protected double width, height;
 
     public GameObject(double x, double y, double width, double height) {
@@ -15,10 +13,10 @@ public abstract class GameObject {
         this.height = height;
     }
 
-    // update: cập nhật trạng thái đối tượng mỗi khung hình (deltaTime tính bằng giây)
+    // cập nhật trạng thái đối tượng mỗi khung hình
     public abstract void update(double deltaTime);
 
-    // render: vẽ đối tượng lên GraphicsContext
+    // vẽ đối tượng lên GraphicsContext
     public abstract void render(GraphicsContext gc);
 
     public double getX() {

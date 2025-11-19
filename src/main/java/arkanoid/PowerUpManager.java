@@ -1,18 +1,18 @@
 package arkanoid;
 
+
 import java.util.*;
-import arkanoid.SoundManager;
+
 
 public class PowerUpManager {
     private final Random random = new Random();
-
-    // weaken / shockwave
     private boolean weakenInProgress = false;
     private Shockwave currentShockwave = null;
     // bộ gạch đã bị ảnh hưởng bởi sóng xung kích
     private final Set<Brick> shockAffected = new HashSet<>();
 
-    // Next-level warp (portal) effect
+
+    // hiệu ứng Next-level
     private boolean nextLevelInProgress = false;
     private double portalX = 0;
     private double portalY = 0;
@@ -22,90 +22,110 @@ public class PowerUpManager {
     private final double WHITE_FLASH_DURATION = 0.32; // thời gian fade trắng
     private boolean whiteFlashActive = false;
 
+
     public PowerUpManager() {
     }
+
 
     public boolean isWeakenInProgress() {
         return weakenInProgress;
     }
 
+
     public Shockwave getCurrentShockwave() {
         return currentShockwave;
     }
+
 
     public boolean isNextLevelInProgress() {
         return nextLevelInProgress;
     }
 
+
     public Set<Brick> getShockAffected() {
         return shockAffected;
     }
+
 
     public double getPortalX() {
         return portalX;
     }
 
+
     public double getPortalY() {
         return portalY;
     }
+
 
     public double getPortalGlow() {
         return portalGlow;
     }
 
+
     public double getWhiteFlashAlpha() {
         return whiteFlashAlpha;
     }
+
 
     public double getWHITE_FLASH_DURATION() {
         return WHITE_FLASH_DURATION;
     }
 
+
     public boolean isWhiteFlashActive() {
         return whiteFlashActive;
     }
+
 
     public double getPortalBaseRadius() {
         return portalBaseRadius;
     }
 
 
-
     public void setWeakenInProgress(boolean weakenInProgress) {
         this.weakenInProgress = weakenInProgress;
     }
+
 
     public void setCurrentShockwave(Shockwave currentShockwave) {
         this.currentShockwave = currentShockwave;
     }
 
+
     public void setNextLevelInProgress(boolean nextLevelInProgress) {
         this.nextLevelInProgress = nextLevelInProgress;
     }
+
 
     public void setPortalX(double portalX) {
         this.portalX = portalX;
     }
 
+
     public void setPortalY(double portalY) {
         this.portalY = portalY;
     }
+
 
     public void setPortalBaseRadius(double portalBaseRadius) {
         this.portalBaseRadius = portalBaseRadius;
     }
 
+
     public void setPortalGlow(double portalGlow) {
         this.portalGlow = portalGlow;
     }
+
 
     public void setWhiteFlashAlpha(double whiteFlashAlpha) {
         this.whiteFlashAlpha = whiteFlashAlpha;
     }
 
+
     public void setWhiteFlashActive(boolean whiteFlashActive) {
         this.whiteFlashActive = whiteFlashActive;
     }
+
 
     // Cập nhật các hiệu ứng đang hoạt động và xử lý khi chúng hết hạn
     public void updateActiveEffects(double dt, EntityManager entities, GameState state, Paddle paddle) {
@@ -153,6 +173,7 @@ public class PowerUpManager {
         }
     }
 
+
     public boolean checkActiveEffect(PowerUp.PowerType type, EntityManager entities, double time) {
         for (ActiveEffect ae : entities.getActiveEffects()) {
             if (ae.type == type) {
@@ -162,6 +183,7 @@ public class PowerUpManager {
         }
         return false;
     }
+
 
     // Được gọi khi paddle nhặt được power-up
     public void applyPowerUp(PowerUp.PowerType type, EntityManager entities, GameState state, Paddle paddle, double gameHeight) {
@@ -206,14 +228,15 @@ public class PowerUpManager {
                 SoundManager.get().play(SoundManager.Sfx.MULTIBALL);
                 List<Ball> newBalls = new ArrayList<>();
                 for (int i = 0; i < 2; i++) {
-                    double existingSpeed = 350; // Tốc độ mặc định phòng trường hợp không tìm thấy bóng
+                    double existingSpeed = 350;
                     if (!entities.getBalls().isEmpty()) {
                         // Lấy tốc độ của quả bóng đầu tiên trong danh sách
                         existingSpeed = entities.getBalls().get(0).getBaseSpeed();
                     }
                     Ball nb = new Ball(paddle.getX() + paddle.getWidth() / 2, paddle.getY() - 10, 8, paddle);
                     nb.setBaseSpeed(existingSpeed);
-                    applyActiveEffectsToBall(nb, entities.getActiveEffects()); // Áp dụng hiệu ứng hiện có cho bóng mới
+                    applyActiveEffectsToBall(nb, entities.getActiveEffects());
+
 
                     double angle = Math.toRadians(20) * (i == 0 ? -1 : 1);
                     double speedVal = nb.getBaseSpeed();
@@ -331,12 +354,12 @@ public class PowerUpManager {
         }
     }
 
+
     // Được gọi khi một viên gạch vỡ
     public void trySpawnPowerUp(double x, double y, EntityManager entities) {
-        double spawnChance = 0.3; // 30% chance
+        double spawnChance = 0.3;
         if (random.nextDouble() > spawnChance) return;
 
-        // Trọng số (giữ nguyên từ Game.java)
         Map<PowerUp.PowerType, Double> weights = new LinkedHashMap<>();
         weights.put(PowerUp.PowerType.SHRINK_PADDLE, 0.5);
         weights.put(PowerUp.PowerType.EXPAND_PADDLE, 0.5);
@@ -353,6 +376,7 @@ public class PowerUpManager {
         weights.put(PowerUp.PowerType.WEAKEN, 0.7);
         weights.put(PowerUp.PowerType.SCORE_MULTIPLIER, 0.7);
 
+
         double total = 0;
         for (double v : weights.values()) total += v;
         double r = random.nextDouble() * total;
@@ -366,9 +390,11 @@ public class PowerUpManager {
             }
         }
 
+
         entities.addPowerUp(new PowerUp(x, y, chosen));
         SoundManager.get().play(SoundManager.Sfx.PORTAL);
     }
+
 
     // Áp dụng các hiệu ứng đang hoạt động cho một quả bóng mới
     public void applyActiveEffectsToBall(Ball bl, List<ActiveEffect> activeEffects) {
@@ -391,52 +417,57 @@ public class PowerUpManager {
         }
     }
 
+
     public void triggerWeaken(Paddle paddle) {
-        if (weakenInProgress) return; // ignore if one active
-        // origin = paddle center top (or center)
+        if (weakenInProgress) return;
         double ox = paddle.getX() + paddle.getWidth() * 0.5;
         double oy = paddle.getY() + paddle.getHeight() * 0.5;
-        // compute maxRadius = diagonal of screen
         double maxR = Math.hypot(800, 600) * 1.1;
-        double speed = Math.max(800, 600) * 2.4; // px/s (fast) -> ~2.4 screen widths per second
-        double thickness = 18.0; // ring thickness
+        double speed = Math.max(800, 600) * 2.4;
+        double thickness = 18.0;
         currentShockwave = new Shockwave(ox, oy, speed, maxR, thickness);
         weakenInProgress = true;
         shockAffected.clear();
 
+
     }
+
 
     public void triggerNextLevelEffect(double px, double py, EntityManager entities) {
         if (nextLevelInProgress) return;
 
+
         // chọn vị trí cổng
         portalX = (px > 0) ? px : 800 * 0.5;
-        portalY = (py > 0) ? py : 600 * 0.45; // hơi lên trên trung tâm để cảm giác thu hút
+        portalY = (py > 0) ? py : 600 * 0.45;
+
 
         // thu thập những viên gạch còn lại
         List<Brick> remaining = new ArrayList<>(entities.getBricks());
         if (remaining.isEmpty()) {
-            // không có gạch: chỉ cần flash và tải cấp độ tiếp theo
+            // không có gạch thì chỉ cần flash và tải cấp độ tiếp theo
             whiteFlashAlpha = 1.0;
             whiteFlashActive = true;
             nextLevelInProgress = true;
             return;
         }
 
+
         entities.getBricks().clear();
 
+
         entities.getFlyingBricks().clear();
+
 
         // tạo FlyingBrick với các brick còn lại
         for (Brick b : remaining) {
             double bx = b.getX() + b.getWidth() * 0.5;
             double by = b.getY() + b.getHeight() * 0.5;
-            // direction toward portal
+            // hướng bay về phía cổng
             double dx = portalX - bx;
             double dy = portalY - by;
             double dist = Math.max(1.0, Math.hypot(dx, dy));
             double dirx = dx / dist, diry = dy / dist;
-            // speed: base + factor by distance (so far bricks move faster)
             double speed = 220 + Math.random() * 180 + dist * 0.15;
             double vx = dirx * speed;
             double vy = diry * speed;
@@ -444,6 +475,7 @@ public class PowerUpManager {
             FlyingBrick fb = new FlyingBrick(b, bx, by, vx, vy, angV);
             entities.getFlyingBricks().add(fb);
         }
+
 
         // khởi tạo hình ảnh cổng
         portalBaseRadius = 16.0;
@@ -453,3 +485,6 @@ public class PowerUpManager {
         nextLevelInProgress = true;
     }
 }
+
+
+

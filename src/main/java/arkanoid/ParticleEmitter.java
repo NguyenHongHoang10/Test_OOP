@@ -13,7 +13,8 @@ public class ParticleEmitter {
     private final List<Particle> active = new ArrayList<>();
     private final List<Particle> pool = new ArrayList<>();
 
-    private Particle obtain(double x, double y, double vx, double vy, double life, double size, Color color) {
+    private Particle obtain(double x, double y, double vx, double vy,
+                            double life, double size, Color color) {
         if (!pool.isEmpty()) {
             Particle p = pool.remove(pool.size() - 1);
             p.init(x, y, vx, vy, life, size, color);
@@ -25,10 +26,10 @@ public class ParticleEmitter {
     public void emitExplosion(double cx, double cy, int count) {
         for (int i = 0; i < count; i++) {
             double angle = Math.random() * Math.PI * 2;
-            double speed = 80 + Math.random() * 380; // 80..460
+            double speed = 80 + Math.random() * 380;
             double vx = Math.cos(angle) * speed;
             double vy = Math.sin(angle) * speed * 0.6 - Math.random() * 120;
-            double life = 0.35 + Math.random() * 0.45; // 0.35..0.8s
+            double life = 0.35 + Math.random() * 0.45;
             double size = 2 + Math.random() * 6;
             int r = 200 + (int) (Math.random() * 55);
             int g = 80 + (int) (Math.random() * 80);
@@ -78,7 +79,6 @@ public class ParticleEmitter {
         gc.setGlobalAlpha(1.0);
         gc.setGlobalBlendMode(BlendMode.SRC_OVER);
 
-        // Tạo khói nhẹ (không phụ gia) cho các hạt lớn hơn
         for (Particle p : active) {
             if (p.size > 6) {
                 double a = p.alpha() * 0.6;
@@ -91,5 +91,7 @@ public class ParticleEmitter {
         gc.setGlobalAlpha(1.0);
     }
 
-    public int activeCount() { return active.size(); }
+    public int activeCount() {
+        return active.size();
+    }
 }

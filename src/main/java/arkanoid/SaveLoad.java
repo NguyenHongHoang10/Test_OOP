@@ -15,19 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * SaveLoad: Dịch vụ Save/Load trạng thái game.
- * <p>
- * Yêu cầu:
- * - KHÔNG autosave theo chu kỳ; chỉ lưu khi thoát (Exit hoặc đóng cửa sổ).
- * - Start New Game: KHÔNG xóa file cũ; khi thoát sẽ ghi đè file.
- * - Continue (vừa mở app, chưa có session): load từ file, và HIỆN menu Pause (Continue/Restart/Menu),
- * KHÔNG chạy luôn. Bóng giữ nguyên trạng thái đã lưu (đang bay tiếp tục bay; dính thì chờ SPACE).
- * <p>
- * Vị trí lưu:
- * - Ưu tiên: src/main/resources/data/save.dat (IDE/dev).
- * - Nếu chạy JAR (resources read-only): fallback {user.home}/.arkanoid/save.dat.
- */
+// Vị trí lưu: Ưu tiên: src/main/resources/data/save.dat (IDE/dev)
+// Nếu chạy JAR (resources read-only): fallback {user.home}/.arkanoid/save.dat
 public final class SaveLoad {
     private static final SaveLoad I = new SaveLoad();
 
@@ -46,10 +35,10 @@ public final class SaveLoad {
         return Files.exists(resolveSavePath());
     }
 
-    // Lưu trạng thái hiện tại (ghi đè). Gọi khi Exit hoặc đóng cửa sổ.
+    // Lưu trạng thái hiện tại (ghi đè)
     public void save(Game game) {
         if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> save(game)); // snapshot trên FX thread
+            Platform.runLater(() -> save(game));
             return;
         }
         SaveData data = snapshot(game);
@@ -61,7 +50,7 @@ public final class SaveLoad {
         try {
             Files.createDirectories(path.getParent());
 
-            // Ghi đè trực tiếp (đủ dùng vì chỉ lưu khi thoát). Có thể nâng cấp atomic move nếu muốn.
+            // Ghi đè trực tiếp
             try (ObjectOutputStream oos = new ObjectOutputStream(
                     new BufferedOutputStream(Files.newOutputStream(
                             path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)))) {
@@ -72,11 +61,7 @@ public final class SaveLoad {
         }
     }
 
-    /**
-     * Load dữ liệu vào Game và HIỆN menu Pause:
-     * - apply(state) xong sẽ gọi game.pause() để hiển thị bảng Continue/Restart/Menu.
-     * - KHÔNG “đặt lại” bóng về paddle; giữ nguyên stuck/vị trí/vận tốc như lúc lưu.
-     */
+    // Load trạng thái game đã lưu và hiện menu Pause
     public boolean loadIntoAndPrepareContinue(Game game) {
         Path path = resolveSavePath();
         if (!Files.exists(path)) return false;
@@ -89,18 +74,18 @@ public final class SaveLoad {
             SaveData data = (SaveData) ois.readObject();
             Platform.runLater(() -> {
                 apply(game, data);
-                // Tắt các overlay phụ (nếu có), sau đó chuyển sang trạng thái Pause để hiện menu
+                // Tắt các overlay phụ nếu có r sau đó chuyển sang trạng thái Pause để hiện menu
                 GameState st = game.getGameState();
                 st.setConfirmOverlay(false);
                 st.setLevelComplete(false);
                 st.setGameComplete(false);
-                // Đánh dấu đã có “trận đang dở” để Menu có thể coi là có session (phòng khi bạn quay lại menu)
+                // Đánh dấu đã có “trận đang dở” để Menu có thể coi là có session
                 st.setGameStarted(true);
 
                 // GỌI pause() để GameContainer hiển thị bảng Continue/Restart/Menu
                 game.pause();
 
-                // KHÔNG setRunning(true) và KHÔNG reset bóng; giữ nguyên đúng trạng thái đã load
+                // Giữ nguyên đúng trạng thái đã load
                 game.requestFocus();
             });
             return true;
@@ -155,7 +140,7 @@ public final class SaveLoad {
         GameState gs = game.getGameState();
         d.state = GState.from(gs);
 
-        // Lấy các thành phần private của Game qua reflection (không sửa Game.java)
+        // Lấy các thành phần private của Game qua reflection
         Paddle paddle = (Paddle) getField(game, "paddle");
         EntityManager em = (EntityManager) getField(game, "entityManager");
         Boss boss = (Boss) getField(game, "boss");
@@ -185,22 +170,22 @@ public final class SaveLoad {
         return d;
     }
 
-    // Áp dữ liệu đã load vào Game (giữ nguyên stuck/vị trí/vận tốc của bóng)
+    // Áp dữ liệu đã load vào Game, giữ nguyên stuck/vị trí/vận tốc của bóng
     private void apply(Game game, SaveData d) {
         GameState gs = game.getGameState();
         Paddle paddle = (Paddle) getField(game, "paddle");
         EntityManager em = (EntityManager) getField(game, "entityManager");
 
-        gs.setRunning(false);   // dừng vòng lặp trong lúc apply
-        em.clearAll();          // dọn sạch thực thể cũ
+        gs.setRunning(false);
+        em.clearAll();
 
-        d.state.applyTo(gs);    // GameState
+        d.state.applyTo(gs);
 
-        gs.setGameStarted(true); // Đánh dấu đã có session
+        gs.setGameStarted(true);
 
-        d.paddle.applyTo(paddle); // Paddle
+        d.paddle.applyTo(paddle);
 
-        // Balls (khôi phục đầy đủ)
+        // Balls
         List<Ball> balls = new ArrayList<>();
         for (BallM bm : d.balls) balls.add(bm.toBall(paddle));
         em.getBalls().addAll(balls);
@@ -222,7 +207,6 @@ public final class SaveLoad {
         setBoolean(game, "bossLevel", d.bossLevel);
     }
 
-    // ===================== Model Serializable nội bộ =====================
 
     private static class SaveData implements Serializable {
         String version = "1.0";
@@ -253,7 +237,7 @@ public final class SaveLoad {
             d.running = s.isRunning();
             d.win = s.isWin();
             d.showMsg = s.isShowMessage();
-            d.gameStarted = s.isGameStarted();        // ghi nhận cờ gameStarted
+            d.gameStarted = s.isGameStarted();
             d.pauseOverlay = s.isPauseOverlay();
             d.confirmOverlay = s.isConfirmOverlay();
             d.barrierActive = s.isBarrierActive();
@@ -279,7 +263,6 @@ public final class SaveLoad {
             s.setCurrentLevelIndex(currentLevelIndex);
             s.setLevelComplete(levelComplete);
             s.setGameComplete(gameComplete);
-            // gameStarted không có setter public -> sẽ set bằng reflection sau load (để MenuPane nhận biết có session)
         }
     }
 
@@ -298,7 +281,7 @@ public final class SaveLoad {
         }
 
         void applyTo(Paddle p) {
-            // cùng package -> gán được field protected
+            // Gán giá trị x cho paddle
             p.x = x;
             p.y = y;
             p.setWidth(w);
@@ -312,7 +295,7 @@ public final class SaveLoad {
 
         static BallM from(Ball b) {
             BallM d = new BallM();
-            d.cx = b.getX() + b.getRadius(); // lưu theo tâm
+            d.cx = b.getX() + b.getRadius();
             d.cy = b.getY() + b.getRadius();
             d.r = b.getRadius();
             d.baseSpeed = b.getBaseSpeed();
@@ -327,7 +310,7 @@ public final class SaveLoad {
         Ball toBall(Paddle p) {
             Ball nb = new Ball(cx, cy, r, p);
             nb.setBaseSpeed(baseSpeed);
-            nb.setVelocity(vx, vy);  // sẽ được chuẩn hóa theo baseSpeed bên trong Ball
+            nb.setVelocity(vx, vy);
             nb.setFireball(fireball);
             nb.setStuck(stuck);
             nb.setX(cx - r);
@@ -341,7 +324,7 @@ public final class SaveLoad {
         int type;
         double x, y, w, h;
         int hits;
-        double leftBound, rightBound, direction, x0; // MovingBrick
+        double leftBound, rightBound, direction, x0;
 
         static BrickM from(Brick b) {
             BrickM d = new BrickM();
@@ -369,20 +352,17 @@ public final class SaveLoad {
 
         Brick toBrick() {
             if (type == 3) {
-                // Khôi phục đúng bound: constructor sẽ tính
-                // leftBound' = max(leftParam, x0 - range/2)
-                // rightBound' = min(rightParam - w, x0 + range/2)
-                // Ta muốn leftBound' == leftBound và rightBound' == rightBound đã lưu
+                // Khôi phục đúng vị trí và giới hạn di chuyển của brick động theo dữ liệu đã lưu
                 double leftParam = leftBound;
-                double rightParam = rightBound + w; // vì constructor sẽ trừ width
+                double rightParam = rightBound + w;
 
-                double initX0 = (x0 == 0.0 ? x : x0); // tương thích save cũ nếu chưa có x0
+                double initX0 = (x0 == 0.0 ? x : x0);
                 MovingBrick mb = new MovingBrick(initX0, y, w, h, Math.max(1, hits), MovingBrick.BrickType.WEAK);
 
                 // Hướng di chuyển
                 mb.setDirection(direction);
 
-                // Đặt lại vị trí hiện tại theo state đã lưu (kẹp trong [leftBound, rightBound - w])
+                // Đặt lại vị trí hiện tại theo state đã lưu
                 double clampedX = Math.max(leftBound, Math.min(rightBound - w, x));
                 mb.setX(clampedX);
 
@@ -533,7 +513,7 @@ public final class SaveLoad {
 
         Boss toBoss() {
             Boss boss = new Boss(x, y, w, h, leftBound, rightBound);
-            // Khớp HP bằng cách “trừ” chênh lệch (vì Boss không có setter HP)
+            // Khớp HP bằng cách trừ chênh lệch
             double curMax = getDouble(boss, "maxHealth", maxHealth);
             double cur = getDouble(boss, "health", curMax);
             double delta = cur - health;
@@ -560,8 +540,6 @@ public final class SaveLoad {
             return new BossBullet(x, y, w, h, 300, 10);
         }
     }
-
-    // ===================== Reflection helpers =====================
 
     private static Object getField(Object target, String name) {
         try {

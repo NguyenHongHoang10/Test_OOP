@@ -6,32 +6,27 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import javafx.scene.image.Image;
 
 import java.util.List;
 
-/**
- * HighScoreUI: Gom các UI tiện ích cho HighScore
- * - createTopRightInfoBar: thanh góc phải hiển thị HighScore + Level
- * - createLeaderboardScene: màn LeaderBoard Top 10, có nút Back ở góc dưới trái
- * - promptNameIfQualified: overlay "Congratulations" nhập tên nếu lọt Top 10
- */
+// UI tiện ích cho High Score
 public final class HighScoreUI {
     private HighScoreUI() {
     }
 
-    /* 1) LeaderBoard Scene (Top 10) */
+    // LeaderBoard Scene Top 10
     public static Scene createLeaderboardScene(double width, double height,
                                                HighScoreService svc,
                                                Runnable onBack) {
         BorderPane root = new BorderPane();
         root.setPrefSize(width, height);
         try {
-            // 1. Tải ảnh từ thư mục resources
+            // Tải ảnh từ thư mục resources
             String path = "/Image/Background/leaderboardBackground.jpg";
             Image bgImage = new Image(HighScoreUI.class.getResourceAsStream(path));
 
@@ -39,10 +34,10 @@ public final class HighScoreUI {
                 throw new Exception("Lỗi khi tải ảnh: " + bgImage.getException().getMessage());
             }
 
-            // 2. Tạo đối tượng BackgroundSize (che phủ 100%)
+            // Tạo đối tượng BackgroundSize
             BackgroundSize bgSize = new BackgroundSize(1.0, 1.0, true, true, false, true);
 
-            // 3. Tạo BackgroundImage
+            // Tạo BackgroundImage
             BackgroundImage backgroundImage = new BackgroundImage(
                     bgImage,
                     BackgroundRepeat.NO_REPEAT,
@@ -51,13 +46,13 @@ public final class HighScoreUI {
                     bgSize
             );
 
-            // 4. Đặt nền cho BorderPane (root)
+            // Đặt nền cho khung viền
             root.setBackground(new Background(backgroundImage));
 
         } catch (Exception e) {
             System.err.println("Không thể tải ảnh nền leaderboardBackground.jpg. Sử dụng màu nền dự phòng.");
             e.printStackTrace();
-            // Nếu tải ảnh thất bại, dùng lại màu nền cũ (từ file 18)
+            // Nếu tải ảnh thất bại thì dùng lại màu nền cũ
             root.setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
         }
 
@@ -122,7 +117,7 @@ public final class HighScoreUI {
         return l;
     }
 
-    /* 2) Overlay nhập tên khi lọt Top 10 */
+    // nhập tên khi lọt Top 10
     public static boolean promptNameIfQualified(Pane overlayParent,
                                                 int score,
                                                 HighScoreService svc,
@@ -137,8 +132,10 @@ public final class HighScoreUI {
         VBox box = new VBox(12);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(20));
-        box.setBackground(new Background(new BackgroundFill(Color.web("#222833"), new CornerRadii(10), Insets.EMPTY)));
-        box.setBorder(new Border(new BorderStroke(Color.WHITE, BorderStrokeStyle.SOLID, new CornerRadii(10), new BorderWidths(1))));
+        box.setBackground(new Background(new BackgroundFill(Color.web("#222833"),
+                new CornerRadii(10), Insets.EMPTY)));
+        box.setBorder(new Border(new BorderStroke(Color.WHITE, BorderStrokeStyle.SOLID,
+                new CornerRadii(10), new BorderWidths(1))));
         box.setMaxWidth(420);
 
         Text congrats = new Text("Congratulations!");

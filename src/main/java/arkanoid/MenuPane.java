@@ -1,24 +1,22 @@
 package arkanoid;
 
+
 import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
-import javafx.scene.image.Image;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundImage;
-import javafx.scene.layout.BackgroundPosition;
-import javafx.scene.layout.BackgroundRepeat;
-import javafx.scene.layout.BackgroundSize;
+
 
 public class MenuPane extends VBox {
     private final Game game;
+
 
     private final Button startBtn;
     private final Button continueBtn;
@@ -27,16 +25,16 @@ public class MenuPane extends VBox {
     private final Button leaderboardBtn;
     private final Button settingBtn;
 
+
     private final Text continueErrorText;
 
-    // Giữ các Constructor cũ để tương thích
-
-    // Constructor 4 tham số (Sửa: gọi 7 tham số)
+    // Constructor 4 tham số
     public MenuPane(Game game, Runnable startCallback, Runnable continueCallback, Runnable exitCallback) {
         this(game, startCallback, continueCallback, null, null, null, exitCallback);
     }
 
-    // Constructor 5 tham số không truyền leaderboardCallback
+
+    // Constructor 5 tham số
     public MenuPane(Game game,
                     Runnable startCallback,
                     Runnable continueCallback,
@@ -45,20 +43,20 @@ public class MenuPane extends VBox {
         this(game, startCallback, continueCallback, continueSavedCallback, null, exitCallback);
     }
 
-    // Constructor 6 tham số (Sửa: gọi 7 tham số)
+
+    // Constructor 6 tham số
     public MenuPane(Game game,
                     Runnable startCallback,
                     Runnable continueCallback,
                     Runnable continueSavedCallback,
                     Runnable leaderboardCallback,
                     Runnable exitCallback) {
-        // Gọi constructor 7 tham số, truyền 'null' cho howToPlayCallback (tham số thứ 6)
-        this(game, startCallback, continueCallback, continueSavedCallback, leaderboardCallback, null, null, exitCallback);
+        this(game, startCallback, continueCallback, continueSavedCallback,
+                leaderboardCallback, null, null, exitCallback);
     }
 
-    /**
-     * Constructor đầy đủ với 7 tham số (6 callbacks).
-     */
+
+    // Constructor đầy đủ với 7 tham số
     public MenuPane(Game game,
                     Runnable startCallback,
                     Runnable continueCallback,
@@ -66,13 +64,12 @@ public class MenuPane extends VBox {
                     Runnable leaderboardCallback,
                     Runnable howToPlayCallback,
                     Runnable exitCallback) {
-        // Gọi constructor 8 tham số, truyền 'null' cho settingsCallback
-        this(game, startCallback, continueCallback, continueSavedCallback, leaderboardCallback, howToPlayCallback, null, exitCallback);
+        this(game, startCallback, continueCallback, continueSavedCallback,
+                leaderboardCallback, howToPlayCallback, null, exitCallback);
     }
 
-    /**
-     * Constructor đầy đủ với 8 tham số (7 callbacks).
-     */
+
+    //Constructor đầy đủ với 8 tham số
     public MenuPane(Game game,
                     Runnable startCallback,
                     Runnable continueCallback,
@@ -85,21 +82,23 @@ public class MenuPane extends VBox {
         this.game = game;
         setAlignment(Pos.CENTER);
         setPadding(new Insets(20));
-        // (Giữ nguyên logic tải ảnh nền của bạn)
         setPrefSize(800, 600);
         try {
             Image bgImage = new Image(getClass().getResourceAsStream("/Image/Background/MenuBackground.jpg"));
             if (bgImage.isError()) throw new Exception("Lỗi tải ảnh");
             BackgroundSize bgSize = new BackgroundSize(1.0, 1.0, true, true, false, true);
-            BackgroundImage backgroundImage = new BackgroundImage(bgImage, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, bgSize);
+            BackgroundImage backgroundImage = new BackgroundImage(bgImage, BackgroundRepeat.NO_REPEAT,
+                    BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, bgSize);
             setBackground(new Background(backgroundImage));
         } catch (Exception e) {
             setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
         }
 
+
         Text title = new Text("ARKANOID");
-        title.setFill(Color.web("#FFD966")); // (Bạn có thể đổi thành Color.WHITE nếu nền tối)
+        title.setFill(Color.web("#FFD966"));
         title.setFont(Font.font(48));
+
 
         startBtn = new Button("▶ Start New Game");
         styleMainButton(startBtn);
@@ -114,32 +113,30 @@ public class MenuPane extends VBox {
         continueBtn.setOnAction(e -> {
             SoundManager.get().play(SoundManager.Sfx.PAUSE);
 
-            // (Giữ nguyên logic nút Continue của bạn)
             if (canContinue()) {
                 continueCallback.run();
                 return;
-            }
-            else if (continueSavedCallback != null && SaveLoad.get().hasSave()) {
+            } else if (continueSavedCallback != null && SaveLoad.get().hasSave()) {
                 continueSavedCallback.run();
-                return; // <-- Thêm return
-            }
-            // (Thêm logic gọi levelSelectCallback nếu có)
-            else {
+                return;
+            } else {
                 showContinueError();
             }
         });
 
-        // === Nút How to Play ===
-        howToPlayBtn = new Button("How to play"); // Đổi tên
+
+        // Nút How to Play
+        howToPlayBtn = new Button("How to play");
         styleMainButton(howToPlayBtn);
         howToPlayBtn.setOnAction(e -> {
             if (howToPlayCallback != null) {
-                howToPlayCallback.run(); // Gọi callback mới
+                howToPlayCallback.run();
             } else {
                 System.out.println("How to play clicked - Not implemented");
             }
             SoundManager.get().play(SoundManager.Sfx.PAUSE);
         });
+
 
         // Nút Leaderboard
         leaderboardBtn = new Button("🏆 Leaderboard");
@@ -150,54 +147,56 @@ public class MenuPane extends VBox {
             SoundManager.get().play(SoundManager.Sfx.PAUSE);
         });
 
+
         // Nút Setting
         settingBtn = new Button("⚙ Setting");
         styleMainButton(settingBtn);
         settingBtn.setOnAction(e -> {
             if (settingsCallback != null) {
-                settingsCallback.run(); // <-- SỬA ĐÂY
+                settingsCallback.run();
             } else {
                 System.out.println("Setting clicked - Not implemented");
             }
             SoundManager.get().play(SoundManager.Sfx.PAUSE);
         });
 
+
         exitBtn = new Button("❌ Exit");
         styleMainButton(exitBtn);
         exitBtn.setOnAction(e -> exitCallback.run());
 
+
         continueErrorText = new Text("Nothing to continue");
         continueErrorText.setFont(Font.font(16));
         continueErrorText.setFill(Color.ORANGERED);
-        continueErrorText.setVisible(false); // Ẩn lúc đầu
+        continueErrorText.setVisible(false);
+
 
         getChildren().addAll(title, startBtn, continueBtn, howToPlayBtn,
                 leaderboardBtn, settingBtn, exitBtn, continueErrorText);
     }
-    /**
-     * Kiểm tra trạng thái của Game để quyết định có thể "Continue" hay không.
-     */
+
+    // Kiểm tra trạng thái của Game để quyết định có thể "Continue" hay không
     private boolean canContinue() {
-        // 1. Nếu game chưa bao giờ bắt đầu -> không thể
+        // Nếu game chưa bao giờ bắt đầu thì không thể
         if (!game.isGameStarted()) {
             return false;
         }
 
         GameState state = game.getGameState();
 
-        // 2. Nếu đang ở màn hình "Game Over" (showMessage) hoặc "Level Complete" (levelComplete)
-        // (Chúng ta dùng 'isShowMessage' vì nó được set=true khi Game Over hoặc Win màn cuối)
+        // Nếu đang ở màn hình "Game Over" hoặc "Level Complete"
         if (state.isShowMessage() || state.isLevelComplete()) {
             return false;
         }
 
-        // 3. Nếu game đã bắt đầu VÀ không ở trạng thái kết thúc -> có thể
+
+        // Nếu game đã bắt đầu VÀ không ở trạng thái kết thúc thì có thể
         return true;
     }
 
-    /**
-     * Hiển thị thông báo lỗi "Nothing to continue" trong 3 giây.
-     */
+
+    //Hiển thị thông báo lỗi "Nothing to continue" trong 3 giây.
     private void showContinueError() {
         continueErrorText.setVisible(true);
         // Tạo một đối tượng PauseTransition để ẩn text sau 3 giây
@@ -206,11 +205,12 @@ public class MenuPane extends VBox {
         visiblePause.play();
     }
 
+
     private void styleMainButton(Button b) {
         b.setFont(Font.font(22));
         b.setPrefWidth(260);
         b.setStyle("-fx-background-color: linear-gradient(#26a0da, #0077b6);"
-                + "-fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 8 18 8 18;" );
+                + "-fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 8 18 8 18;");
         b.setOnMouseEntered(e -> {
             b.setScaleX(1.03);
             b.setScaleY(1.03);
@@ -219,7 +219,10 @@ public class MenuPane extends VBox {
             b.setScaleX(1.0);
             b.setScaleY(1.0);
         });
-        // subtle shadow
-        b.setEffect(new DropShadow(6, Color.rgb(0,0,0,0.45)));
+
+        b.setEffect(new DropShadow(6, Color.rgb(0, 0, 0, 0.45)));
     }
 }
+
+
+

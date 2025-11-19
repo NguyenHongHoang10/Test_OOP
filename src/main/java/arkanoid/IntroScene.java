@@ -13,10 +13,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
-/**
- * Lớp này quản lý Scene và Animation cho màn hình Intro
- * (sử dụng IntroBackground.jpg).
- */
+// Quản lý Scene và Animation cho màn hình Intro sử dụng IntroBackground.jpg
 public class IntroScene {
 
     private final Scene scene;
@@ -52,14 +49,14 @@ public class IntroScene {
 
         this.scene = new Scene(root, width, height);
 
-        // Tạo hiệu ứng (đen -> rõ -> đen)
+        // Tạo hiệu ứng mờ dần rồi biến mất
         root.setOpacity(0.0);
 
         FadeTransition fadeIn = new FadeTransition(Duration.seconds(1.5), root);
         fadeIn.setFromValue(0.0);
         fadeIn.setToValue(1.0);
 
-        PauseTransition hold = new PauseTransition(Duration.seconds(1.0)); // Giữ 1 giây
+        PauseTransition hold = new PauseTransition(Duration.seconds(1.0));
 
         FadeTransition fadeOut = new FadeTransition(Duration.seconds(1.5), root);
         fadeOut.setFromValue(1.0);
@@ -67,10 +64,10 @@ public class IntroScene {
 
         this.sequence = new SequentialTransition(fadeIn, hold, fadeOut);
 
-        // Khi kết thúc: gọi callback (để chuyển sang Menu)
+        // Khi kết thúc thì gọi callback chuyển sang Menu
         sequence.setOnFinished(e -> onFinishedCallback.run());
 
-        // Xử lý SKIP
+        // Xử lý skip intro khi nhấn phím bất kỳ
         this.scene.setOnKeyPressed((KeyEvent event) -> {
             sequence.stop();
             onFinishedCallback.run();

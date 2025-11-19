@@ -1,12 +1,10 @@
 package arkanoid;
 
-/**
- * vệt đuôi cho ball
- */
+// vệt đuôi cho ball
 public class TrailSegment {
     double x, y;
     double radius;
-    double life;    // remaining
+    double life;
     double maxLife;
 
     TrailSegment(double x, double y, double radius, double maxLife) {

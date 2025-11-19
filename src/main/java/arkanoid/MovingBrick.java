@@ -4,8 +4,8 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
 public class MovingBrick extends Brick {
-    private double speed = 0.3; // tốc độ di chuyển
-    private double direction = 1; // 1 = phải, -1 = trái
+    private double speed = 0.3;
+    private double direction = 1;
     private final double leftBound;
     private final double rightBound;
     private final double x0;
@@ -77,6 +77,7 @@ public class MovingBrick extends Brick {
         gc.setStroke(Color.DARKGRAY);
         gc.strokeRoundRect(x, y, width, height, 6, 6);
     }
+
     public void setDirection(double dir) {
         this.direction = dir;
     }

@@ -9,14 +9,13 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import arkanoid.SoundManager;
 
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
         double width = 800, height = 600;
 
-        // Holder để tham chiếu scene trong callback Game (do lambda cần biến final/effectively final)
+        // Holder để tham chiếu scene trong callback Game
         class MenuSceneHolder {
             Scene scene;
         }
@@ -41,34 +40,27 @@ public class Main extends Application {
 
         Scene gameScene = new Scene(gameContainer, width, height);
 
-        // (Phải tạo menuScene trước, vì HowToPlayScene cần nó)
-        //Scene menuScene = new Scene(new StackPane(), width, height); // Placeholder
-        //menuSceneHolder.scene = menuScene;
-
-        // 1. Tạo StackPane làm root cho menu
-        //    Nó sẽ chứa MenuPane và SettingsMenu
+        // Tạo StackPane làm root cho menu, chứa MenuPane và SettingsMenu
         StackPane menuRoot = new StackPane();
-        Scene menuScene = new Scene(menuRoot, width, height); // Đặt menuRoot làm gốc
+        Scene menuScene = new Scene(menuRoot, width, height);
         menuSceneHolder.scene = menuScene;
 
-        // 2. Tạo SettingsMenu (overlay)
-        //    Nút "Back" của nó sẽ chỉ ẩn chính nó
+        // Tạo SettingsMenu
         SettingsMenu settingsMenu = new SettingsMenu(() -> {
             SoundManager.get().play(SoundManager.Sfx.PAUSE);
         });
-        settingsMenu.setVisible(false); // Ẩn lúc đầu
+        settingsMenu.setVisible(false);
         StackPane.setAlignment(settingsMenu, Pos.CENTER);
 
-        // 1. Tạo Scene "How to play" (MỚI)
-        // (Sử dụng File 1, HowToPlayScene.java, mà bạn đã có)
+        // Tạo Scene "How to play"
         HowToPlayScene howToPlayScene = new HowToPlayScene(width, height,
-                () -> stage.setScene(menuSceneHolder.scene) // Callback: quay về menu
+                () -> stage.setScene(menuSceneHolder.scene)
         );
 
-        // Dùng constructor mới: truyền continueSavedCallback
+        // Dùng constructor mới để truyền continueSavedCallback
         MenuPane menuPane = new MenuPane(
                 game,
-                // Khi nhấn "Start Game" -> Mở chọn Level
+                // Khi nhấn "Start Game" thì Mở chọn Level
                 () -> {
                     LevelSelectPane levelSelectPane = new LevelSelectPane(
                             () -> { // Chọn Level 1
@@ -106,14 +98,14 @@ public class Main extends Application {
                                 stage.setScene(gameScene);
                                 game.requestFocus();
                             },
-                            () -> {
+                            () -> { // chọn Level 6
                                 game.resetScore();
                                 game.resetLives();
-                                game.startLevel6(); // chọn Level 6
+                                game.startLevel6();
                                 stage.setScene(gameScene);
                                 game.requestFocus();
                             },
-                            () -> stage.setScene(menuSceneHolder.scene) // Nút "Trở lại"
+                            () -> stage.setScene(menuSceneHolder.scene) // Nút Back
                     );
                     stage.setScene(new Scene(levelSelectPane, width, height));
                 },
@@ -123,19 +115,19 @@ public class Main extends Application {
                     if (game.isGameStarted()) game.pause();
                     stage.setScene(gameScene);
                     game.requestFocus();
-                    int idx = game.getGameState().getCurrentLevelIndex(); // 0..5
+                    int idx = game.getGameState().getCurrentLevelIndex();
                     SoundManager.get().startBgm(idx == 5 ? SoundManager.Bgm.BOSS : SoundManager.Bgm.LEVEL);
                 },
-                // Continue (chưa có session): load từ file và vào game chờ SPACE (không overlay)
+                // Continue load từ file
                 () -> {
                     SoundManager.get().stopBgm();
                     stage.setScene(gameScene);
                     boolean ok = SaveLoad.get().loadIntoAndPrepareContinue(game);
                     if (!ok) {
-                        // Không có file hợp lệ → quay lại menu (tuỳ chọn)
+                        // Không có file hợp lệ thì quay lại menu
                         stage.setScene(menuSceneHolder.scene);
                     } else {
-                        int idx = game.getGameState().getCurrentLevelIndex(); // 0..5
+                        int idx = game.getGameState().getCurrentLevelIndex();
                         SoundManager.get().startBgm(idx == 5 ? SoundManager.Bgm.BOSS : SoundManager.Bgm.LEVEL);
                     }
                 },
@@ -147,30 +139,26 @@ public class Main extends Application {
                 },
                 () -> stage.setScene(howToPlayScene.getScene()),
                 () -> {
-                    settingsMenu.onShow(); // Cập nhật nút On/Off
+                    settingsMenu.onShow();
                     settingsMenu.setVisible(true);
                 },
-                // Exit: Lưu rồi thoát
+                // Exit thì lưu rồi thoát
                 () -> {
                     SaveLoad.get().save(game);
                     Platform.exit();
                 }
         );
 
-//        Scene menuScene = new Scene(menuPane, width, height);
-//        menuSceneHolder.scene = menuScene;
-        //menuScene.setRoot(menuPane);
+
         menuRoot.getChildren().addAll(menuPane, settingsMenu);
 
-        // 1. Tạo StoryScene (Màn 2)
-        // Khi StoryScene kết thúc, nó sẽ gọi "chuyển sang menuScene"
+        // Tạo màn StoryScene, kết thúc sẽ về menu
         StoryScene storyScene = new StoryScene(width, height, () -> {
             stage.setScene(menuScene);
             SoundManager.get().stopBgm();
             SoundManager.get().startBgm(SoundManager.Bgm.MENU);
         });
-        // 2. Tạo IntroScene (Màn 1)
-        // Khi IntroScene kết thúc, nó sẽ gọi "chuyển sang storyScene" VÀ "chạy storyScene"
+        // Tạo IntroScene, kết thúc sẽ chuyển sang StoryScene và chạy StoryScene
         IntroScene introScene = new IntroScene(width, height, () -> {
             stage.setScene(storyScene.getScene());
             storyScene.play(); // Bắt đầu cuộn chữ
@@ -201,13 +189,14 @@ public class Main extends Application {
                 int score = s.getScore();
                 boolean shown = HighScoreUI.promptNameIfQualified(
                         gameContainer, score, highScoreService,
-                        () -> game.pause() // lưu xong thì hiện Restart/Menu
+                        () -> game.pause()
                 );
-                // Dù có hiển thị hay không, ghi nhận đã xử lý để không lặp
+                // Ghi nhận đã xử lý để không lặp
                 promptedThisRun[0] = true;
             }
             // Reset cờ khi ván mới thực sự chạy
-            if (s.isRunning() && s.getLives() > 0 && !s.isLevelComplete() && !s.isGameComplete() && !s.isShowMessage()) {
+            if (s.isRunning() && s.getLives() > 0 && !s.isLevelComplete()
+                    && !s.isGameComplete() && !s.isShowMessage()) {
                 promptedThisRun[0] = false;
             }
         }));
@@ -215,8 +204,8 @@ public class Main extends Application {
         watcher.play();
 
         stage.show();
-        introScene.play(); // Bảo class mới tự chạy animation
-        game.requestFocus(); // để nhận input
+        introScene.play();
+        game.requestFocus();
     }
 
     public static void main(String[] args) {

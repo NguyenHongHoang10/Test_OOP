@@ -11,12 +11,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * HighScoreService
- * - Lưu/đọc bảng xếp hạng Top 10.
- * - File: data/highscore (cùng thư mục với save.dat).
- * - Định dạng TSV: "score<TAB>timestamp<TAB>name" mỗi dòng.
- */
+// Quản lý bảng xếp hạng Top 10, lưu ở file data/highscore
+// định dạng "score<TAB>timestamp<TAB>name" mỗi dòng
 public final class HighScoreService {
 
     public static final int MAX_ENTRIES = 10;
@@ -41,16 +37,13 @@ public final class HighScoreService {
         }
     }
 
-    // Cache: đọc từ file một lần, sau đó chỉ cập nhật trong RAM khi score lớn hơn
+    // đọc từ file một lần, sau đó chỉ cập nhật trong RAM khi score lớn hơn
     private int cachedBest = -1;
 
     private boolean initialized = false;
 
-    // API công khai
 
-    /**
-     * Trả về thứ hạng (1..10) nếu score lọt Top 10, ngược lại -1.
-     */
+    // Trả về thứ hạng nếu score lọt Top 10, ngược lại -1
     public synchronized int qualifyRank(int score) {
         List<Entry> list = readAll();
         list.sort(this::cmp);
@@ -69,9 +62,7 @@ public final class HighScoreService {
         }
     }
 
-    /**
-     * Ghi nhận điểm người chơi vào bảng xếp hạng (tự cắt còn Top 10).
-     */
+    // Ghi nhận điểm người chơi vào bảng xếp hạng, tự cắt còn Top 10
     public synchronized void submit(String rawName, int score) {
         String name = sanitize(rawName);
         long ts = System.currentTimeMillis();
@@ -88,9 +79,7 @@ public final class HighScoreService {
         }
     }
 
-    /**
-     * Lấy Top n (mặc định dùng n=10).
-     */
+    // lấy top n
     public synchronized List<Entry> getTop(int n) {
         List<Entry> list = readAll();
         list.sort(this::cmp);
@@ -98,34 +87,27 @@ public final class HighScoreService {
         return list;
     }
 
-    /**
-     * Lấy điểm cao nhất (để hiển thị HUD).
-     */
+    // Lấy điểm cao nhất để hiển thị HUD
+
     public synchronized int getBestScore() {
         return readAll().stream().mapToInt(e -> e.score).max().orElse(0);
     }
 
-    /**
-     * Đảm bảo cachedBest đã được nạp từ file một lần.
-     */
+    // cachedBest đã được nạp từ file một lần
     private void ensureInit() {
         if (!initialized) {
-            cachedBest = getBestScore(); // đọc file 1 lần
+            cachedBest = getBestScore();
             initialized = true;
         }
     }
 
-    /**
-     * Trả về highscore đang có trong RAM (đã load trước đó).
-     */
+    // lấy highscore đang có trong RAM
     public synchronized int getCachedBest() {
         ensureInit();
         return Math.max(0, cachedBest);
     }
 
-    /**
-     * Nếu score hiện tại vượt cachedBest thì cập nhật cachedBest (chỉ trong RAM).
-     */
+    // Nếu score hiện tại vượt cachedBest thì cập nhật cachedBest trong RAM
     public synchronized void maybeUpdateBest(int score) {
         ensureInit();
         if (score > cachedBest) cachedBest = score;
@@ -135,11 +117,10 @@ public final class HighScoreService {
         return resolveDataDir().resolve("highscore");
     }
 
-    // Nội bộ
-
+    // sắp xếp
     private int cmp(Entry a, Entry b) {
-        if (a.score != b.score) return Integer.compare(b.score, a.score); // giảm dần
-        return Long.compare(a.ts, b.ts); // cùng điểm: ai đạt trước đứng trước
+        if (a.score != b.score) return Integer.compare(b.score, a.score);
+        return Long.compare(a.ts, b.ts);
     }
 
     private String sanitize(String s) {
@@ -202,10 +183,7 @@ public final class HighScoreService {
         }
     }
 
-    /**
-     * Xác định thư mục data giống SaveLoad: ưu tiên src/main/resources/data,
-     * nếu không -> target/classes/data, cuối cùng {user.home}/.arkanoid
-     */
+    // Chọn thư mục data: ưu tiên src/main/resources/data, nếu không có thì dùng nơi khác
     private Path resolveDataDir() {
         Path dev = Paths.get("src", "main", "resources", "data");
         if (canCreate(dev)) return dev;

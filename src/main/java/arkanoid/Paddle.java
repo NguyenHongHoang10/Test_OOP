@@ -1,70 +1,80 @@
 package arkanoid;
 
+
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
-import javafx.scene.image.Image;
+
 import java.util.HashSet;
 import java.util.Set;
 
+
 public class Paddle extends GameObject {
-    // Tập các phím đang nhấn (LEFT/RIGHT hoặc A/D)
+    // Tập các phím đang nhấn
     private final Set<KeyCode> keys = new HashSet<>();
     // Tốc độ di chuyển theo px/giây
     private final double speed = 600;
     // Chiều rộng của khu vực chơi dùng để giới hạn paddle không đi quá biên
     private final double arenaWidth;
     private boolean hasLaser = false;
-    // hiệu ứng nhấp nháy khi trúng đạn
     private boolean isBlinking = false;
     private long blinkStartTime = 0;
     private long blinkDuration = 400;
 
-    private Image platformImage;        // Ảnh thanh đòn (phần trên, co dãn)
-    private Image platformBaseImage;    // Ảnh đế (phần dưới, cố định)
-    private Image platformReducedImage; // Ảnh thu nhỏ
-    private Image platformEnlargedImage; // Ảnh phóng to
-    private Image laserImage;           // Ảnh súng laser
+
+    private Image platformImage;
+    private Image platformBaseImage;
+    private Image platformReducedImage;
+    private Image platformEnlargedImage;
+    private Image laserImage;
+
 
     private final double initialWidth;
     double newPlatformHeight;
-    private double baseWidth;     // Chiều rộng gốc của đế
-    private double baseHeight;    // Chiều cao gốc của đế
-    private double nativeLaserWidth;    // Chiều rộng gốc của súng
-    private double nativeLaserHeight;   // Chiều cao gốc của súng
+    private double baseWidth;
+    private double baseHeight;
+    private double nativeLaserWidth;
+    private double nativeLaserHeight;
+
 
     public Paddle(double x, double y, double width, double height, double arenaWidth) {
         newPlatformHeight = height / 2.0;
+
 
         super(x, y, width, height);
         this.arenaWidth = arenaWidth;
         this.initialWidth = width;
 
+
         try {
-            // (Đường dẫn dựa trên cấu trúc thư mục bạn cung cấp)
             platformImage = new Image(getClass().getResourceAsStream("/Image/Paddle/platform.png"));
             platformBaseImage = new Image(getClass().getResourceAsStream("/Image/Paddle/platform_base-Sheet.png"));
             platformReducedImage = new Image(getClass().getResourceAsStream("/Image/Paddle/platform_reduced.png"));
             platformEnlargedImage = new Image(getClass().getResourceAsStream("/Image/Paddle/platform_enlarged.png"));
             laserImage = new Image(getClass().getResourceAsStream("/Image/Paddle/laser.png"));
 
+
             // Lấy kích thước gốc của các ảnh
             double nativeBaseWidth = platformBaseImage.getWidth();
             double nativeBaseHeight = platformBaseImage.getHeight();
-            nativeLaserWidth = laserImage.getWidth();           // Rộng
-            nativeLaserHeight = laserImage.getHeight();         // Cao
+            nativeLaserWidth = laserImage.getWidth();
+            nativeLaserHeight = laserImage.getHeight();
+
 
             this.baseHeight = nativeBaseHeight / 2.0;
             this.baseWidth = nativeBaseWidth / 2.0;
 
-            // Cập nhật chiều cao tổng thể của GameObject (dùng cho va chạm)
+
+            // Cập nhật chiều cao tổng thể của GameObject
             this.height = newPlatformHeight + baseHeight;
+
 
         } catch (Exception e) {
             System.err.println("LỖI: Không thể tải ảnh Paddle từ /Image/Paddle/: " + e.getMessage());
             e.printStackTrace();
-            // Nếu tải lỗi, sẽ dùng render() dự phòng (vẽ hình xanh)
-            platformImage = null; // Đặt tất cả về null
+            // Nếu tải lỗi sẽ dùng render() dự phòng
+            platformImage = null;
             platformBaseImage = null;
             platformReducedImage = null;
             platformEnlargedImage = null;
@@ -72,25 +82,30 @@ public class Paddle extends GameObject {
         }
     }
 
+
     // gọi paddle khi bị trúng đạn
     public void hit() {
         isBlinking = true;
         blinkStartTime = System.currentTimeMillis();
     }
 
+
     // Gọi khi phím được nhấn
     public void press(KeyCode code) {
         keys.add(code);
     }
+
 
     // Gọi khi phím được nhả
     public void release(KeyCode code) {
         keys.remove(code);
     }
 
+
     public void clearKeys() {
         keys.clear();
     }
+
 
     @Override
     public void update(double deltaTime) {
@@ -110,32 +125,37 @@ public class Paddle extends GameObject {
         }
     }
 
+
     public void setHasLaser(boolean on) {
         this.hasLaser = on;
     }
+
 
     public boolean hasLaser() {
         return this.hasLaser;
     }
 
+
     public void resetBlink() {
         isBlinking = false;
     }
 
-    // thêm helper trả về 2 vị trí nòng súng (center x,y)
+
+    // thêm helper trả về 2 vị trí nòng súng
     public double[] getLaserGunPositions() {
-        // trả về array length 4: [x1,y1,x2,y2]
-        double gx1 = getX() + 18; // offset trái (tùy chỉnh theo width)
+        double gx1 = getX() + 18;
         double gx2 = getX() + getWidth() - 18;
-        double gy = getY() - 6; // ngay trên paddle
+        double gy = getY() - 6;
         return new double[]{gx1, gy, gx2, gy};
     }
+
     @Override
     public void render(GraphicsContext gc) {
         if (platformImage != null && platformBaseImage != null
                 && platformReducedImage != null && platformEnlargedImage != null) {
 
-            // 1. Chọn ảnh platform (phần trên) dựa theo chiều rộng hiện tại
+
+            // Chọn ảnh platform dựa theo chiều rộng hiện tại
             Image imageToDraw;
             if (this.width < this.initialWidth) {
                 imageToDraw = platformReducedImage;
@@ -144,22 +164,26 @@ public class Paddle extends GameObject {
             } else {
                 imageToDraw = platformImage;
             }
-            
+
             double alpha = 1.0;
             if (isBlinking && (System.currentTimeMillis() / 100) % 2 == 0) {
-                alpha = 0.3; // 30% mờ (hiệu ứng nhấp nháy)
+                alpha = 0.3;
             }
+
 
             gc.save();
             gc.setGlobalAlpha(alpha);
 
+
             // Vẽ platform
             gc.drawImage(imageToDraw, x, y, width, newPlatformHeight);
+
 
             // Vẽ base
             double baseX = x + (width / 2.0) - (baseWidth / 2.0);
             double baseY = y + newPlatformHeight;
             gc.drawImage(platformBaseImage, baseX, baseY, baseWidth, baseHeight);
+
 
             //  Vẽ laser nếu có
             if (this.hasLaser && laserImage != null) {
@@ -173,10 +197,12 @@ public class Paddle extends GameObject {
                 gc.drawImage(laserImage, laserX2, laserY, renderLaserWidth, renderLaserHeight);
             }
 
+
             gc.restore();
 
+
         } else {
-            // Dự phòng: vẽ hình chữ nhật khi ảnh chưa load được
+            // vẽ hình chữ nhật khi ảnh chưa load được
             if (isBlinking && (System.currentTimeMillis() / 100) % 2 == 0) {
                 gc.setFill(Color.WHITE);
             } else {
@@ -186,3 +212,6 @@ public class Paddle extends GameObject {
         }
     }
 }
+
+
+
