@@ -4,7 +4,8 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.layout.HBox; // Dùng HBox để xếp 2 nút ngang
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.Font;
 import javafx.scene.layout.VBox;
@@ -14,10 +15,7 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.text.Text;
 
-/**
- * Lớp container này bọc (wrap) lớp Game.
- * Nó là một StackPane cho phép xếp chồng các nút UI lên trên màn hình Game.
- */
+
 public class GameContainer extends StackPane {
 
     private final Game game;
@@ -27,7 +25,6 @@ public class GameContainer extends StackPane {
     private final VBox pauseMenu;
     private final Button btnContinue;
     private final Button btnRestart;
-//    private final Button btnMap; // Nút quay về chọn level
     private final Button btnMenu;
     private final VBox levelCompleteMenu;
     private final Text scoreText; // Text để hiển thị điểm
@@ -44,6 +41,7 @@ public class GameContainer extends StackPane {
     private final VBox gameOverMenu;
     private final Button btnRestartGameOver;
     private final Button btnMenuGameOver;
+    private final SettingsMenu settingsMenu;
 
     public GameContainer(Game gameInstance) {
         this.game = gameInstance;
@@ -73,13 +71,11 @@ public class GameContainer extends StackPane {
         // 2a. Tạo các nút trong menu
         btnContinue = createMenuButton("▶ Continue");
         btnRestart = createMenuButton("↺ Restart");
-//        btnMap = createMenuButton("🗺 Map"); // Nút mới
         btnMenu = createMenuButton("⌂ Menu");
 
         // 2b. Gán hành động cho các nút
         btnContinue.setOnAction(e -> game.resume()); // Gọi resume (sẽ trigger onResumeCallback)
         btnRestart.setOnAction(e -> game.restartCurrentLevel());
-//        btnMap.setOnAction(e -> game.returnToLevelSelect());
         btnMenu.setOnAction(e -> game.returnToMenu());
 
         // 2c. Tạo VBox chứa các nút
@@ -130,7 +126,7 @@ public class GameContainer extends StackPane {
         levelCompleteMenu.setMaxSize(300, 400); // Rộng hơn 1 chút cho tiêu đề
         levelCompleteMenu.setVisible(false); // Ẩn lúc đầu
 
-        //Xây dựng Game Complete Menu ===
+        //Xây dựng Game Complete Menu
         Text gameCompleteTitle = new Text("CONGRATULATIONS!");
         gameCompleteTitle.setFont(Font.font(32));
         gameCompleteTitle.setFill(Color.GOLD); // Màu vàng
@@ -159,7 +155,7 @@ public class GameContainer extends StackPane {
         gameCompleteMenu.setMaxSize(400, 400);
         gameCompleteMenu.setVisible(false); // Ẩn lúc đầu
 
-        //Xây dựng Confirm Quit Menu ===
+        //Xây dựng Confirm Quit Menu
         Text confirmTitle = new Text("Do you want to quit?");
         confirmTitle.setFont(Font.font(24));
         confirmTitle.setFill(Color.WHITE);
@@ -167,12 +163,32 @@ public class GameContainer extends StackPane {
         btnYes = new Button("Yes");
         btnYes.setFont(Font.font(20));
         btnYes.setPrefWidth(100);
+        btnYes.setStyle("-fx-background-color: linear-gradient(#26a0da, #0077b6);"
+                + "-fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 8 18 8 18;" );
+        btnYes.setOnMouseEntered(e -> {
+            btnYes.setScaleX(1.03);
+            btnYes.setScaleY(1.03);
+        });
+        btnYes.setOnMouseExited(e -> {
+            btnYes.setScaleX(1.0);
+            btnYes.setScaleY(1.0);
+        });
         btnYes.setFocusTraversable(false);
         btnYes.setOnAction(e -> Platform.exit()); // Tắt game
 
         btnNo = new Button("No");
         btnNo.setFont(Font.font(20));
         btnNo.setPrefWidth(100);
+        btnNo.setStyle("-fx-background-color: linear-gradient(#26a0da, #0077b6);"
+                + "-fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 8 18 8 18;" );
+        btnNo.setOnMouseEntered(e -> {
+            btnNo.setScaleX(1.03);
+            btnNo.setScaleY(1.03);
+        });
+        btnNo.setOnMouseExited(e -> {
+            btnNo.setScaleX(1.0);
+            btnNo.setScaleY(1.0);
+        });
         btnNo.setFocusTraversable(false);
         btnNo.setOnAction(e -> game.cancelQuit()); // Gọi hàm mới trong Game.java
 
@@ -211,9 +227,15 @@ public class GameContainer extends StackPane {
         gameOverMenu.setMaxSize(300, 300);
         gameOverMenu.setVisible(false); // Ẩn lúc đầu
 
+        // Nút "Back" của menu này sẽ gọi hàm closeSettingsAndPause()
+        settingsMenu = new SettingsMenu(() -> {
+            game.closeSettingsAndPause();
+            SoundManager.get().play(SoundManager.Sfx.PAUSE);
+        });
+
         // 4. Thêm Game (lớp dưới) và HBox (lớp trên) vào StackPane
         getChildren().addAll(game, pauseMenu, levelCompleteMenu,
-                gameCompleteMenu,confirmQuitMenu,gameOverMenu, buttonContainer);
+                gameCompleteMenu,confirmQuitMenu,gameOverMenu,settingsMenu, buttonContainer);
 
         // 5. Căn chỉnh HBox ra góc trên bên phải của StackPane
         StackPane.setAlignment(buttonContainer, Pos.TOP_RIGHT);
@@ -223,6 +245,7 @@ public class GameContainer extends StackPane {
         StackPane.setAlignment(gameCompleteMenu, Pos.CENTER);
         StackPane.setAlignment(confirmQuitMenu, Pos.CENTER);
         StackPane.setAlignment(gameOverMenu, Pos.CENTER);
+        StackPane.setAlignment(settingsMenu, Pos.CENTER);
 
         game.setOnPause(() -> {
             GameState state = game.getGameState();
@@ -233,6 +256,7 @@ public class GameContainer extends StackPane {
             gameCompleteMenu.setVisible(false);
             confirmQuitMenu.setVisible(false);
             gameOverMenu.setVisible(false);
+            settingsMenu.setVisible(false);
 
             // Kiểm tra theo thứ tự ưu tiên
             if (state.isGameComplete()) {
@@ -245,6 +269,10 @@ public class GameContainer extends StackPane {
                 buttonContainer.setVisible(false);
             } else if (state.isConfirmOverlay()) { // KIỂM TRA MỚI
                 confirmQuitMenu.setVisible(true);
+                buttonContainer.setVisible(false);
+            } else if (state.isSettingsOverlay()) {
+                settingsMenu.onShow(); // Cập nhật nút On/Off
+                settingsMenu.setVisible(true);
                 buttonContainer.setVisible(false);
             } else if (state.isShowMessage()) {
                 gameOverMenu.setVisible(true);
@@ -262,6 +290,7 @@ public class GameContainer extends StackPane {
             gameCompleteMenu.setVisible(false);
             confirmQuitMenu.setVisible(false);
             gameOverMenu.setVisible(false);
+            settingsMenu.setVisible(false);
             buttonContainer.setVisible(true); // Hiện lại nút '⚙' và '⏸'
         });
     }
@@ -273,7 +302,20 @@ public class GameContainer extends StackPane {
         Button btn = new Button(text);
         btn.setPrefWidth(240);
         btn.setFont(Font.font(24));
+        btn.setStyle("-fx-background-color: linear-gradient(#26a0da, #0077b6);"
+                + "-fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 8 18 8 18;" );
+        btn.setOnMouseEntered(e -> {
+            btn.setScaleX(1.03);
+            btn.setScaleY(1.03);
+        });
+        btn.setOnMouseExited(e -> {
+            btn.setScaleX(1.0);
+            btn.setScaleY(1.0);
+        });
+        // subtle shadow
+        btn.setEffect(new DropShadow(6, Color.rgb(0,0,0,0.45)));
         btn.setFocusTraversable(false); // Ngăn không cho nút chiếm focus
         return btn;
     }
+
 }

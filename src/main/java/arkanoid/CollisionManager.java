@@ -1,37 +1,121 @@
 package arkanoid;
 
+import javafx.scene.paint.Color;
+
 import java.util.*;
 
 public class CollisionManager {
+    // Hiệu ứng nổ trực quan
+    private final List<Explosion> explosions;
+    // HUD hiện điểm số
+    private final List<ScorePopup> scorePopups = new ArrayList<>();
 
-    public CollisionManager() {}
+    // particle emitter
+    private ParticleEmitter emitter;
+    private DebrisEmitter debrisEmitter;
+    // rung màn hình / choáng
+    private double shakeTime = 0;
+    private double shakeDuration = 0;
+    private double shakeMagnitude = 0;
+    private double flashAlpha = 0;
 
-    /**
-     * Xử lý tất cả các va chạm trong game và trả về kết quả (sự kiện).
-     */
+
+    public CollisionManager() {
+        explosions = new ArrayList<>();
+        this.emitter = new ParticleEmitter();
+        this.debrisEmitter = new DebrisEmitter();
+    }
+
+    public ParticleEmitter getEmitter() {
+        return emitter;
+    }
+
+    public DebrisEmitter getDebrisEmitter() {
+        return debrisEmitter;
+    }
+
+    public double getFlashAlpha() {
+        return flashAlpha;
+    }
+
+    public List<Explosion> getExplosions() {
+        return explosions;
+    }
+
+    public List<ScorePopup> getScorePopups() {
+        return scorePopups;
+    }
+
+    public double getShakeTime() {
+        return shakeTime;
+    }
+
+    public double getShakeDuration() {
+        return shakeDuration;
+    }
+
+    public double getShakeMagnitude() {
+        return shakeMagnitude;
+    }
+
+    public void setShakeTime(double shakeTime) {
+        this.shakeTime = shakeTime;
+    }
+
+    public void setShakeDuration(double shakeDuration) {
+        this.shakeDuration = shakeDuration;
+    }
+
+    public void setShakeMagnitude(double shakeMagnitude) {
+        this.shakeMagnitude = shakeMagnitude;
+    }
+
+    public void setFlashAlpha(double flashAlpha) {
+        this.flashAlpha = flashAlpha;
+    }
+
+    //Xử lý tất cả các va chạm trong game và trả về kết quả (sự kiện).
     public CollisionResult handleCollisions(EntityManager entities, GameState state, Paddle paddle,
-                                            PowerUpManager powerUpManager, double gameWidth, double gameHeight) {
+                                            PowerUpManager powerUpManager, double gameWidth, double gameHeight, double dt) {
 
         CollisionResult result = new CollisionResult();
         List<Ball> ballsToRemove = new ArrayList<>();
 
         // 1. Va chạm của Bóng
         for (Ball bl : entities.getBalls()) {
+            bl.update(dt);
             bl.collideWithWalls(gameWidth, gameHeight);
             bl.collideWithPaddle(paddle);
 
             // Bóng vs Gạch
             handleBallBrickCollisions(bl, entities, state, powerUpManager);
 
-            // Bóng vs Đáy (Mất mạng)
+            if (state.isBarrierActive() && bl.getY() > gameHeight - 40) {
+                bl.bounceUp(); // Nảy lên
+                SoundManager.get().play(SoundManager.Sfx.BARRIER_BREAK);
+                bl.setPositionY(state.getBarrierY() - bl.getRadius() - 30); // Đặt lại vị trí
+                state.consumeBarrier(); // Dùng mất rào chắn
+            }
+
+            // cập nhật score popups
+            java.util.Iterator<ScorePopup> spIt = scorePopups.iterator();
+            while (spIt.hasNext()) {
+                ScorePopup sp = spIt.next();
+                sp.update(dt);
+                if (!sp.isAlive()) spIt.remove();
+            }
+
+            // Cập nhật các explosion
+            Iterator<Explosion> expIt = explosions.iterator();
+            while (expIt.hasNext()) {
+                Explosion ex = expIt.next();
+                ex.update(dt);
+                if (!ex.isAlive()) expIt.remove();
+            }
+
+            // Bóng vs Đáy
             if (bl.getY() > gameHeight) {
-                if (state.isBarrierActive()) {
-                    bl.bounceUp(); // Nảy lên
-                    bl.setPositionY(state.getBarrierY() - bl.getRadius() - 1); // Đặt lại vị trí
-                    state.consumeBarrier(); // Dùng mất rào chắn
-                } else {
-                    ballsToRemove.add(bl); // Đánh dấu để xóa
-                }
+                ballsToRemove.add(bl); // Đánh dấu để xóa
             }
         }
         entities.getBalls().removeAll(ballsToRemove);
@@ -44,8 +128,8 @@ public class CollisionManager {
         while (pIt.hasNext()) {
             PowerUp pu = pIt.next();
             if (pu.collidesWithPaddle(paddle)) {
-                result.collectedPowerUps.add(pu); // Báo cáo đã nhặt
-                pIt.remove(); // Xóa khỏi thế giới game
+                result.collectedPowerUps.add(pu);
+                pIt.remove();
             }
         }
 
@@ -67,17 +151,36 @@ public class CollisionManager {
         Iterator<Brick> it = entities.getBricks().iterator();
         while (it.hasNext()) {
             Brick b = it.next();
-            if (bl.collideWithBrick(b)) {
+            if (bl.collideWithBrick(b, bl.isFireball())) {
                 Brick.Type t = b.getType();
 
                 if (bl.isFireball()) {
                     // Fireball phá hủy ngay lập tức
                     double bx = b.getX() + b.getWidth() / 2.0;
                     double by = b.getY() + b.getHeight() / 2.0;
-                    it.remove();
+                    if (t == Brick.Type.EXPLOSIVE) {
+                        handleExplosion(b, entities, state); // Kích nổ
+                        SoundManager.get().play(SoundManager.Sfx.EXPLOSION);
+                    } else if (t == Brick.Type.INDESTRUCTIBLE) {
+                        SoundManager.get().play(SoundManager.Sfx.BOUNCE_PADDLE);
+                        // Không phá hủy gạch bất tử
+                        continue;
+                    } else {
+                        SoundManager.get().play(SoundManager.Sfx.BRICK_BREAK);
+                        it.remove();
+                    }
                     state.addScore(100);
                     powerUpManager.trySpawnPowerUp(bx, by, entities);
                 } else {
+                    if (t == Brick.Type.INDESTRUCTIBLE) {
+                        // Gạch bất tử: chỉ nảy lại
+                        SoundManager.get().play(SoundManager.Sfx.BOUNCE_PADDLE);
+                        continue;
+                    } else if (t == Brick.Type.EXPLOSIVE) {
+                        SoundManager.get().play(SoundManager.Sfx.EXPLOSION);
+                    } else {
+                        SoundManager.get().play(SoundManager.Sfx.BRICK_BREAK);
+                    }
                     // Gạch thường
                     boolean removed = b.hit(); // Gạch bị đánh
                     if (removed) {
@@ -87,7 +190,13 @@ public class CollisionManager {
                         it.remove();
                         state.addScore(100);
                         powerUpManager.trySpawnPowerUp(bx, by, entities);
+                        // Tạo hiệu ứng nổ cho viên trung tâm
+                        double maxR = Math.max(b.getWidth(), b.getHeight()) * 1.8;
 
+                        debrisEmitter.emitDebris(bx, by, b.getWidth(), b.getHeight(), 20, Color.rgb(0, 255, 255));
+
+                        int displayed = (int) Math.round(100 * state.getScoreMultiplier());
+                        scorePopups.add(new ScorePopup(bx, by - 6, "+" + displayed)); // -6 để nhấc popup lên hơi trên brick
                         if (t == Brick.Type.EXPLOSIVE) {
                             handleExplosion(b, entities, state); // Kích nổ
                         }
@@ -95,6 +204,7 @@ public class CollisionManager {
                         // Gạch chỉ bị trúng (chưa vỡ)
                         if (b.isDestructible()) state.addScore(50);
                     }
+
                 }
                 break; // Chỉ xử lý 1 va chạm gạch mỗi bóng, mỗi khung hình
             }
@@ -112,6 +222,7 @@ public class CollisionManager {
             while (bIt2.hasNext()) {
                 Brick br2 = bIt2.next();
                 if (bullet.collidesWithBrick(br2)) {
+                    SoundManager.get().play(SoundManager.Sfx.LASER_SHOT);
                     // Đạn phá hủy gạch ngay lập tức
                     double bx = br2.getX() + br2.getWidth() / 2.0;
                     double by = br2.getY() + br2.getHeight() / 2.0;
@@ -125,7 +236,7 @@ public class CollisionManager {
         }
     }
 
-    // Xử lý logic gạch nổ (chuyển từ Game.java)
+    // Xử lý logic gạch nổ
     private void handleExplosion(Brick center, EntityManager entities, GameState state) {
         double stepX = center.getWidth() + 8;
         double stepY = center.getHeight() + 6;
@@ -144,7 +255,7 @@ public class CollisionManager {
             double cx = cur.getX() + cur.getWidth() / 2.0;
             double cy = cur.getY() + cur.getHeight() / 2.0;
 
-            // 1) 8 hàng xóm để kích nổ dây chuyền
+            // 1) 8 gạch lân cận để kích nổ dây chuyền
             for (int dx : dir) {
                 for (int dy : dir) {
                     if (dx == 0 && dy == 0) continue;
@@ -191,7 +302,13 @@ public class CollisionManager {
                             visited.add(found);
                             q.add(found);
                         }
-                        if (found.isDestructible()) toRemoveSet.add(found);
+                        if (found.isDestructible()) {
+                            toRemoveSet.add(found);
+                            double fx = found.getX() + found.getWidth() / 2.0;
+                            double fy = found.getY() + found.getHeight() / 2.0;
+                            double mR = Math.max(found.getWidth(), found.getHeight()) * 1.6;
+                            explosions.add(new Explosion(fx, fy, mR, 0.45));
+                        }
                     }
                 }
             }
@@ -199,6 +316,22 @@ public class CollisionManager {
 
         // Xóa tất cả các gạch trong vụ nổ
         for (Brick b : toRemoveSet) {
+            // tạo hiệu ứng nổ nếu chưa có (đảm bảo center cũng có)
+            double bx = b.getX() + b.getWidth() / 2.0;
+            double by = b.getY() + b.getHeight() / 2.0;
+            explosions.add(new Explosion(bx, by, Math.max(b.getWidth(), b.getHeight()) * 1.6, 0.45));
+            // vị trí trung tâm của viên nổ
+            double cx = center.getX() + center.getWidth() / 2.0;
+            double cy = center.getY() + center.getHeight() / 2.0;
+            // hạt nổ li ti
+            emitter.emitExplosion(cx, cy, 28);
+            emitter.emitSmoke(cx, cy + 6, 6);
+            // rung màn hình
+            shakeDuration = 0.45;
+            shakeTime = shakeDuration;
+            shakeMagnitude = 10;
+            // choáng
+            flashAlpha = Math.max(flashAlpha, 0.85);
             if (entities.getBricks().remove(b)) {
                 state.addScore(100);
             }

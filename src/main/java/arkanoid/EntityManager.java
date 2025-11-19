@@ -7,25 +7,17 @@ import java.util.List;
 public class EntityManager {
     private final List<Ball> balls = new ArrayList<>();
     private final List<Brick> bricks = new ArrayList<>();
+    private final List<FlyingBrick> flyingBricks = new ArrayList<>();
     private final List<PowerUp> powerUps = new ArrayList<>();
     private final List<Bullet> bullets = new ArrayList<>();
     private final List<ActiveEffect> activeEffects = new ArrayList<>();
     private final List<HUDMessage> hudMessages = new ArrayList<>();
 
-    public EntityManager() {}
+    public EntityManager() {
+    }
 
-    // Cập nhật các đối tượng cần update (như đạn, power-up rơi, HUD)
+    // Cập nhật các đối tượng cần update
     public void updateAll(double dt) {
-        // Cập nhật bóng (chỉ vị trí, va chạm xử lý ở CollisionManager)
-        for (Ball bl : balls) {
-            bl.update(dt);
-        }
-
-        for (Brick brick : bricks) {
-            if (brick instanceof MovingBrick) {
-                ((MovingBrick) brick).update(dt);
-            }
-        }
 
         // Cập nhật power-up đang rơi
         Iterator<PowerUp> pIt = powerUps.iterator();
@@ -59,20 +51,63 @@ public class EntityManager {
     }
 
     // Getters
-    public List<Ball> getBalls() { return balls; }
-    public List<Brick> getBricks() { return bricks; }
-    public List<PowerUp> getPowerUps() { return powerUps; }
-    public List<Bullet> getBullets() { return bullets; }
-    public List<ActiveEffect> getActiveEffects() { return activeEffects; }
-    public List<HUDMessage> getHudMessages() { return hudMessages; }
+    public List<Ball> getBalls() {
+        return balls;
+    }
+
+    public List<Brick> getBricks() {
+        return bricks;
+    }
+
+    public List<FlyingBrick> getFlyingBricks() {
+        return flyingBricks;
+    }
+
+    public List<PowerUp> getPowerUps() {
+        return powerUps;
+    }
+
+    public List<Bullet> getBullets() {
+        return bullets;
+    }
+
+    public List<ActiveEffect> getActiveEffects() {
+        return activeEffects;
+    }
+
+    public List<HUDMessage> getHudMessages() {
+        return hudMessages;
+    }
 
     // Adders
-    public void addBall(Ball b) { balls.add(b); }
-    public void addBrick(Brick b) { bricks.add(b); }
-    public void addPowerUp(PowerUp p) { powerUps.add(p); }
-    public void addBullet(Bullet b) { bullets.add(b); }
-    public void addActiveEffect(ActiveEffect e) { activeEffects.add(e); }
-    public void addHUDMessage(HUDMessage h) { hudMessages.add(h); }
+    public void addBall(Ball b) {
+        balls.add(b);
+    }
+
+    public void addBrick(Brick b) {
+        bricks.add(b);
+    }
+
+    public void addPowerUp(PowerUp p) {
+        powerUps.add(p);
+    }
+
+    public void addBullet(Bullet b) {
+        bullets.add(b);
+    }
+
+    public void addActiveEffect(ActiveEffect e) {
+        activeEffects.add(e);
+    }
+
+    public void addHUDMessage(HUDMessage h) {
+        hudMessages.add(h);
+    }
+
+    // Removers
+    public void removeActiveEffect(ActiveEffect e) {
+        activeEffects.remove(e);
+    }
 
     // Clearers
     public void clearAll() {
@@ -84,8 +119,13 @@ public class EntityManager {
         hudMessages.clear();
     }
 
-    public void clearBricks() { bricks.clear(); }
-    public void clearBalls() { balls.clear(); }
+    public void clearBricks() {
+        bricks.clear();
+    }
+
+    public void clearBalls() {
+        balls.clear();
+    }
 
     // Đếm số gạch có thể phá còn lại
     public int countRemainingDestructibleBricks() {

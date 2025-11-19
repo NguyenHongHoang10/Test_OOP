@@ -1,0 +1,23 @@
+Trong một tương lai xa, nhân loại đã vươn tới các vì sao. Liên Minh Ngân Hà (Galactic Alliance) duy trì hòa bình và trật tự. Tuy nhiên, ở Vùng Không Gian Vô Danh (The Uncharted Expanse) ngoài rìa vũ trụ đã biết, một hiện tượng bí ẩn bắt đầu lan rộng.
+
+Họ gọi nó là "Sự Tĩnh Lặng" (The Static).
+
+Đó không phải là một hạm đội xâm lược, cũng không phải một thảm họa tự nhiên. Nó là một "Trường Phong Tỏa Tinh Thể" (Crystalline Barricade) khổng lồ, một bức tường năng lượng rắn chắc, đang từ từ lan rộng, nuốt chửng các hệ sao. Bất cứ thứ gì bị "Sự Tĩnh Lặng" bao bọc đều im bặt—mọi tín hiệu liên lạc, mọi ánh sáng sao, đều biến mất.
+
+Các hệ sao bị mắc kẹt bên trong bức tường tinh thể này.
+
+Liên Minh Ngân Hà không thể dùng vũ khí thông thường để phá vỡ "Sự Tĩnh Lặng". Các đòn tấn công bằng laser hay tên lửa chỉ đơn giản là bị hấp thụ hoặc phản xạ lại một cách hỗn loạn. Các tinh thể này dường như có một cấu trúc không gian-thời gian bất thường.
+
+Tuy nhiên, các nhà khoa học phát hiện ra một điểm yếu: các tinh thể này dễ bị phá vỡ bởi Năng Lượng Cộng Hưởng (Resonance Energy). Nếu một "Quả Cầu Năng Lượng" đặc biệt được điều chỉnh đúng tần số và va chạm với chúng, chúng sẽ vỡ tan.
+
+Vấn đề? Quả Cầu Năng Lượng này cực kỳ không ổn định và không thể tự định hướng. Nó cần một "người dẫn đường".
+
+Bạn là phi công của VAUS-X (Vessel of Anti-Static Utility - Model X), một tàu thăm dò thế hệ mới. VAUS-X không phải là một tàu chiến, nó là một "Tàu Phản Pháo" (Deflector Vessel).
+
+Tấm ván (The Paddle): Chính là tàu VAUS-X. Nó được trang bị một trường lực đặc biệt ở mũi tàu, được thiết kế để "bắt" và "phản" Quả Cầu Năng Lượng.
+
+Quả bóng (The Ball): "Quả Cầu Cộng Hưởng" (The Resonance Orb). Đây là vũ khí duy nhất có thể phá vỡ "Sự Tĩnh Lặng".
+
+Gạch (The Bricks): Các "Khối Tinh Thể Tĩnh Lặng" (Static Crystal Blocks).
+
+Nhiệm vụ của bạn là: Điều khiển tàu VAUS-X, phóng Quả Cầu Cộng Hưởng vào Trường Phong Tỏa, và phá vỡ từng lớp tinh thể để giải phóng các hệ sao bị mắc kẹt bên trong.

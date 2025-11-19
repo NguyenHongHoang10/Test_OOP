@@ -9,8 +9,10 @@ public abstract class GameObject {
     protected double width, height;
 
     public GameObject(double x, double y, double width, double height) {
-        this.x = x; this.y = y;
-        this.width = width; this.height = height;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
     }
 
     // update: cập nhật trạng thái đối tượng mỗi khung hình (deltaTime tính bằng giây)
@@ -19,11 +21,25 @@ public abstract class GameObject {
     // render: vẽ đối tượng lên GraphicsContext
     public abstract void render(GraphicsContext gc);
 
-    public double getX() { return x; }
-    public double getY() { return y; }
-    public double getWidth() { return width; }
-    public void setWidth(double width) { this.width = width; }
-    public double getHeight() { return height; }
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public double getWidth() {
+        return width;
+    }
+
+    public void setWidth(double width) {
+        this.width = width;
+    }
+
+    public double getHeight() {
+        return height;
+    }
 
     // Kiểm tra va chạm theo AABB giữa 2 GameObject (hình chữ nhật)
     public boolean intersects(GameObject other) {

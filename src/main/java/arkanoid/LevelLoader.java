@@ -1,6 +1,5 @@
 package arkanoid;
 
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,10 +13,12 @@ import java.util.List;
  * 1-9: gạch bình thường với số hits tương ứng
  * X: gạch không thể phá (indestructible)
  * E: gạch nổ (explosive)
- * M: gạch di chuyển
+ * W: gạch di chuyển - 1 hit
+ * M: gạch di chuyển - 2 hit
+ * S: gạch di chuyển - 3 hit
+ * U: gạch di chuyển - 5 hit
  * B: boss
  */
-
 public class LevelLoader {
     public static LevelData loadLevel(String resourcePath, double gameWidth) throws IOException {
         InputStream in = LevelLoader.class.getResourceAsStream(resourcePath);
@@ -27,7 +28,6 @@ public class LevelLoader {
         String line;
         List<String> grid = new ArrayList<>();
         LevelData data = new LevelData();
-
 
         while ((line = br.readLine()) != null) {
             line = line.trim();
@@ -58,32 +58,46 @@ public class LevelLoader {
             for (int c = 0; c < Math.min(cols, row.length()); c++) {
                 char ch = row.charAt(c);
                 if (ch == '0') continue; // empty
+
                 Brick brick = null;
+
+                double x = startX + c * brickW;
+                double y = startY + r * (brickH + 6);
+                double w = brickW - 8;
+                double h = brickH;
+
                 if (ch == 'X' || ch == 'x') {
-                    brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, Brick.Type.INDESTRUCTIBLE, Integer.MAX_VALUE);
+                    brick = new Brick(x, y, w, h, Brick.Type.INDESTRUCTIBLE, Integer.MAX_VALUE);
                 } else if (ch == 'E' || ch == 'e') {
-                    // explosive with 1 hit
-                    brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, Brick.Type.EXPLOSIVE, 1);
+                    brick = new Brick(x, y, w, h, Brick.Type.EXPLOSIVE, 1);
+                } else if (ch == 'W') {
+                    brick = new MovingBrick(x, y, w, h, 1, MovingBrick.BrickType.WEAK);
                 } else if (ch == 'M') {
-                    brick = new MovingBrick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, 1 ,0, 885);
+                    brick = new MovingBrick(x, y, w, h, 2, MovingBrick.BrickType.MEDIUM);
+                } else if (ch == 'S') {
+                    brick = new MovingBrick(x, y, w, h, 3, MovingBrick.BrickType.STRONG);
+                } else if (ch == 'U') {
+                    brick = new MovingBrick(x, y, w, h, 4, MovingBrick.BrickType.ULTRA);
                 } else if (ch == 'B' || ch == 'b') {
                     data.hasBoss = true;
                 } else if (Character.isDigit(ch)) {
                     int hits = Character.getNumericValue(ch);
-                    brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, hits);
+                    brick = new Brick(x, y, w, h, hits);
                 } else {
                     // unknown char -> treat as normal 1-hit
-                    brick = new Brick(startX + c * brickW, startY + r * (brickH + 6), brickW - 8, brickH, 1);
+                    brick = new Brick(x, y, w, h, 1);
                 }
+
                 if (brick != null) {
                     data.bricks.add(brick);
                 }
+
+                // Gạch di chuyển xen kẽ hướng để sinh động hơn
                 if (r % 2 == 1 && brick instanceof MovingBrick mb) {
                     mb.setDirection(-1);
                 }
             }
         }
-
         return data;
     }
 }

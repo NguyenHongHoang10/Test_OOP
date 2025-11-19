@@ -6,30 +6,40 @@ import java.io.*;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * SaveLoad: Dịch vụ Save/Load trạng thái game.
- *
+ * <p>
  * Yêu cầu:
  * - KHÔNG autosave theo chu kỳ; chỉ lưu khi thoát (Exit hoặc đóng cửa sổ).
  * - Start New Game: KHÔNG xóa file cũ; khi thoát sẽ ghi đè file.
  * - Continue (vừa mở app, chưa có session): load từ file, và HIỆN menu Pause (Continue/Restart/Menu),
- *   KHÔNG chạy luôn. Bóng giữ nguyên trạng thái đã lưu (đang bay tiếp tục bay; dính thì chờ SPACE).
- *
+ * KHÔNG chạy luôn. Bóng giữ nguyên trạng thái đã lưu (đang bay tiếp tục bay; dính thì chờ SPACE).
+ * <p>
  * Vị trí lưu:
  * - Ưu tiên: src/main/resources/data/save.dat (IDE/dev).
  * - Nếu chạy JAR (resources read-only): fallback {user.home}/.arkanoid/save.dat.
  */
 public final class SaveLoad {
     private static final SaveLoad I = new SaveLoad();
-    public static SaveLoad get() { return I; }
+
+    public static SaveLoad get() {
+        return I;
+    }
 
     private volatile boolean printedSavePathOnce = false;
     private volatile boolean printedLoadPathOnce = false;
 
-    private SaveLoad() {}
+    private SaveLoad() {
+    }
 
     // Kiểm tra có file save cho Continue lần đầu khi mở app
     public boolean hasSave() {
@@ -124,13 +134,18 @@ public final class SaveLoad {
             if ("file".equals(dataUrl.getProtocol())) {
                 return Paths.get(dataUrl.toURI()).resolve("save.dat");
             }
-        } catch (URISyntaxException ignored) {}
+        } catch (URISyntaxException ignored) {
+        }
         return null;
     }
 
     private boolean canCreateParent(Path p) {
-        try { Files.createDirectories(p.getParent()); return true; }
-        catch (Exception e) { return false; }
+        try {
+            Files.createDirectories(p.getParent());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // Snapshot toàn bộ trạng thái Game
@@ -160,7 +175,7 @@ public final class SaveLoad {
         for (HUDMessage hm : em.getHudMessages()) d.huds.add(HUDM.from(hm));
 
         // ActiveEffects: map Ball -> index để khôi phục chính xác
-        Map<Ball,Integer> idx = new HashMap<>();
+        Map<Ball, Integer> idx = new HashMap<>();
         for (int i = 0; i < em.getBalls().size(); i++) idx.put(em.getBalls().get(i), i);
         for (ActiveEffect ae : em.getActiveEffects()) d.effects.add(EffM.from(ae, idx));
 
@@ -249,6 +264,7 @@ public final class SaveLoad {
             d.gameComplete = s.isGameComplete();
             return d;
         }
+
         void applyTo(GameState s) {
             s.setLives(lives);
             s.setScore(score);
@@ -258,7 +274,8 @@ public final class SaveLoad {
             s.setShowMessage(showMsg);
             s.setPauseOverlay(pauseOverlay);
             s.setConfirmOverlay(confirmOverlay);
-            if (barrierActive) s.setBarrierActive(true, barrierY); else s.consumeBarrier();
+            if (barrierActive) s.setBarrierActive(true, barrierY);
+            else s.consumeBarrier();
             s.setCurrentLevelIndex(currentLevelIndex);
             s.setLevelComplete(levelComplete);
             s.setGameComplete(gameComplete);
@@ -267,37 +284,50 @@ public final class SaveLoad {
     }
 
     private static class PaddleM implements Serializable {
-        double x,y,w,h; boolean hasLaser;
-        static PaddleM from(Paddle p){
-            PaddleM d=new PaddleM();
-            d.x=p.getX(); d.y=p.getY(); d.w=p.getWidth(); d.h=p.getHeight(); d.hasLaser=p.hasLaser();
+        double x, y, w, h;
+        boolean hasLaser;
+
+        static PaddleM from(Paddle p) {
+            PaddleM d = new PaddleM();
+            d.x = p.getX();
+            d.y = p.getY();
+            d.w = p.getWidth();
+            d.h = p.getHeight();
+            d.hasLaser = p.hasLaser();
             return d;
         }
-        void applyTo(Paddle p){
+
+        void applyTo(Paddle p) {
             // cùng package -> gán được field protected
-            p.x = x; p.y = y; p.setWidth(w); p.setHasLaser(hasLaser);
+            p.x = x;
+            p.y = y;
+            p.setWidth(w);
+            p.setHasLaser(hasLaser);
         }
     }
 
     private static class BallM implements Serializable {
-        double cx, cy, r, vx, vy, baseSpeed; boolean stuck, fireball;
-        static BallM from(Ball b){
-            BallM d=new BallM();
+        double cx, cy, r, vx, vy, baseSpeed;
+        boolean stuck, fireball;
+
+        static BallM from(Ball b) {
+            BallM d = new BallM();
             d.cx = b.getX() + b.getRadius(); // lưu theo tâm
             d.cy = b.getY() + b.getRadius();
-            d.r  = b.getRadius();
+            d.r = b.getRadius();
             d.baseSpeed = b.getBaseSpeed();
-            d.fireball  = b.isFireball();
-            d.stuck     = b.isStuck();
+            d.fireball = b.isFireball();
+            d.stuck = b.isStuck();
             // vx, vy lấy qua reflection
-            d.vx = getDouble(b,"vx",0);
-            d.vy = getDouble(b,"vy",-d.baseSpeed);
+            d.vx = getDouble(b, "vx", 0);
+            d.vy = getDouble(b, "vy", -d.baseSpeed);
             return d;
         }
-        Ball toBall(Paddle p){
-            Ball nb = new Ball(cx,cy,r,p);
+
+        Ball toBall(Paddle p) {
+            Ball nb = new Ball(cx, cy, r, p);
             nb.setBaseSpeed(baseSpeed);
-            nb.setVelocity(vx,vy);  // sẽ được chuẩn hóa theo baseSpeed bên trong Ball
+            nb.setVelocity(vx, vy);  // sẽ được chuẩn hóa theo baseSpeed bên trong Ball
             nb.setFireball(fireball);
             nb.setStuck(stuck);
             nb.setX(cx - r);
@@ -308,35 +338,46 @@ public final class SaveLoad {
 
     // Brick (type: 0=NORMAL, 1=INDESTRUCTIBLE, 2=EXPLOSIVE, 3=MOVING)
     private static class BrickM implements Serializable {
-        int type; double x,y,w,h; int hits;
+        int type;
+        double x, y, w, h;
+        int hits;
         double leftBound, rightBound, direction, x0; // MovingBrick
-        static BrickM from(Brick b){
-            BrickM d=new BrickM();
-            d.x=b.getX(); d.y=b.getY(); d.w=b.getWidth(); d.h=b.getHeight(); d.hits=b.getHits();
-            if (b instanceof MovingBrick mb){
-                d.type=3;
-                d.direction=getDouble(mb,"direction",1);
-                d.leftBound=getDouble(mb,"leftBound",0);
-                d.rightBound=getDouble(mb,"rightBound",800);
-                try { d.x0 = mb.getX0(); }
-                catch (Throwable t) { d.x0 = getDouble(mb, "x0", d.x); }
+
+        static BrickM from(Brick b) {
+            BrickM d = new BrickM();
+            d.x = b.getX();
+            d.y = b.getY();
+            d.w = b.getWidth();
+            d.h = b.getHeight();
+            d.hits = b.getHits();
+            if (b instanceof MovingBrick mb) {
+                d.type = 3;
+                d.direction = getDouble(mb, "direction", 1);
+                d.leftBound = getDouble(mb, "leftBound", 0);
+                d.rightBound = getDouble(mb, "rightBound", 800);
+                try {
+                    d.x0 = mb.getX0();
+                } catch (Throwable t) {
+                    d.x0 = getDouble(mb, "x0", d.x);
+                }
             } else {
-                Brick.Type t=b.getType();
-                d.type = (t==Brick.Type.INDESTRUCTIBLE)?1:(t==Brick.Type.EXPLOSIVE?2:0);
+                Brick.Type t = b.getType();
+                d.type = (t == Brick.Type.INDESTRUCTIBLE) ? 1 : (t == Brick.Type.EXPLOSIVE ? 2 : 0);
             }
             return d;
         }
-        Brick toBrick(){
-            if (type==3){
+
+        Brick toBrick() {
+            if (type == 3) {
                 // Khôi phục đúng bound: constructor sẽ tính
                 // leftBound' = max(leftParam, x0 - range/2)
                 // rightBound' = min(rightParam - w, x0 + range/2)
                 // Ta muốn leftBound' == leftBound và rightBound' == rightBound đã lưu
-                double leftParam  = leftBound;
+                double leftParam = leftBound;
                 double rightParam = rightBound + w; // vì constructor sẽ trừ width
 
                 double initX0 = (x0 == 0.0 ? x : x0); // tương thích save cũ nếu chưa có x0
-                MovingBrick mb = new MovingBrick(initX0, y, w, h, Math.max(1,hits), leftParam, rightParam);
+                MovingBrick mb = new MovingBrick(initX0, y, w, h, Math.max(1, hits), MovingBrick.BrickType.WEAK);
 
                 // Hướng di chuyển
                 mb.setDirection(direction);
@@ -347,109 +388,226 @@ public final class SaveLoad {
 
                 return mb;
             }
-            if (type==1) return new Brick(x,y,w,h, Brick.Type.INDESTRUCTIBLE, Integer.MAX_VALUE);
-            if (type==2) return new Brick(x,y,w,h, Brick.Type.EXPLOSIVE, 1);
-            return new Brick(x,y,w,h, Math.max(1,hits));
+            if (type == 1) return new Brick(x, y, w, h, Brick.Type.INDESTRUCTIBLE, Integer.MAX_VALUE);
+            if (type == 2) return new Brick(x, y, w, h, Brick.Type.EXPLOSIVE, 1);
+            return new Brick(x, y, w, h, Math.max(1, hits));
         }
     }
 
     private static class PowerUpM implements Serializable {
-        double x,y,vy; PowerUp.PowerType type;
-        static PowerUpM from(PowerUp p){ PowerUpM d=new PowerUpM(); d.x=p.x; d.y=p.y; d.vy=p.vy; d.type=p.type; return d; }
-        PowerUp toPowerUp(){ PowerUp pu=new PowerUp(x,y,type); pu.vy=vy; return pu; }
+        double x, y, vy;
+        PowerUp.PowerType type;
+
+        static PowerUpM from(PowerUp p) {
+            PowerUpM d = new PowerUpM();
+            d.x = p.x;
+            d.y = p.y;
+            d.vy = p.vy;
+            d.type = p.type;
+            return d;
+        }
+
+        PowerUp toPowerUp() {
+            PowerUp pu = new PowerUp(x, y, type);
+            pu.vy = vy;
+            return pu;
+        }
     }
 
     private static class BulletM implements Serializable {
-        double x,y,w,h; boolean alive;
-        static BulletM from(Bullet b){ BulletM d=new BulletM(); d.x=b.x; d.y=b.y; d.w=b.w; d.h=b.h; d.alive=b.isAlive(); return d; }
-        Bullet toBullet(){ Bullet nb=new Bullet(x+w/2.0,y+h/2.0); nb.x=x; nb.y=y; nb.w=w; nb.h=h; if(!alive) nb.kill(); return nb; }
+        double x, y, w, h;
+        boolean alive;
+
+        static BulletM from(Bullet b) {
+            BulletM d = new BulletM();
+            d.x = b.x;
+            d.y = b.y;
+            d.w = b.w;
+            d.h = b.h;
+            d.alive = b.isAlive();
+            return d;
+        }
+
+        Bullet toBullet() {
+            Bullet nb = new Bullet(x + w / 2.0, y + h / 2.0);
+            nb.x = x;
+            nb.y = y;
+            nb.w = w;
+            nb.h = h;
+            if (!alive) nb.kill();
+            return nb;
+        }
     }
 
     private static class HUDM implements Serializable {
-        String text; double life,maxLife;
-        static HUDM from(HUDMessage h){ HUDM d=new HUDM(); d.text=h.text; d.life=h.life; d.maxLife=h.maxLife; return d; }
-        HUDMessage toHUD(){ HUDMessage h=new HUDMessage(text,maxLife); h.life=life; return h; }
+        String text;
+        double life, maxLife;
+
+        static HUDM from(HUDMessage h) {
+            HUDM d = new HUDM();
+            d.text = h.text;
+            d.life = h.life;
+            d.maxLife = h.maxLife;
+            return d;
+        }
+
+        HUDMessage toHUD() {
+            HUDMessage h = new HUDMessage(text, maxLife);
+            h.life = life;
+            return h;
+        }
     }
 
     private static class EffM implements Serializable {
-        PowerUp.PowerType type; double remaining;
-        double originalScoreMul=1.0, originalPaddleW=-1; boolean originalHasLaser=false;
-        Map<Integer,Double> speedByBall=new HashMap<>();
-        Map<Integer,Double> radiusByBall=new HashMap<>();
-        Map<Integer,Boolean> fireByBall=new HashMap<>();
+        PowerUp.PowerType type;
+        double remaining;
+        double originalScoreMul = 1.0, originalPaddleW = -1;
+        boolean originalHasLaser = false;
+        Map<Integer, Double> speedByBall = new HashMap<>();
+        Map<Integer, Double> radiusByBall = new HashMap<>();
+        Map<Integer, Boolean> fireByBall = new HashMap<>();
 
-        static EffM from(ActiveEffect ae, Map<Ball,Integer> index){
-            EffM d=new EffM();
-            d.type=ae.type; d.remaining=getDouble(ae,"remaining",0);
-            d.originalScoreMul=ae.originalScoreMultiplier; d.originalPaddleW=ae.originalPaddleWidth; d.originalHasLaser=ae.originalHasLaser;
-            for (var e: ae.originalSpeeds.entrySet()){ Integer i=index.get(e.getKey()); if(i!=null) d.speedByBall.put(i,e.getValue()); }
-            for (var e: ae.originalRadii.entrySet()){ Integer i=index.get(e.getKey()); if(i!=null) d.radiusByBall.put(i,e.getValue()); }
-            for (var e: ae.originalFireball.entrySet()){ Integer i=index.get(e.getKey()); if(i!=null) d.fireByBall.put(i,e.getValue()); }
+        static EffM from(ActiveEffect ae, Map<Ball, Integer> index) {
+            EffM d = new EffM();
+            d.type = ae.type;
+            d.remaining = getDouble(ae, "remaining", 0);
+            d.originalScoreMul = ae.originalScoreMultiplier;
+            d.originalPaddleW = ae.originalPaddleWidth;
+            d.originalHasLaser = ae.originalHasLaser;
+            for (var e : ae.originalSpeeds.entrySet()) {
+                Integer i = index.get(e.getKey());
+                if (i != null) d.speedByBall.put(i, e.getValue());
+            }
+            for (var e : ae.originalRadii.entrySet()) {
+                Integer i = index.get(e.getKey());
+                if (i != null) d.radiusByBall.put(i, e.getValue());
+            }
+            for (var e : ae.originalFireball.entrySet()) {
+                Integer i = index.get(e.getKey());
+                if (i != null) d.fireByBall.put(i, e.getValue());
+            }
             return d;
         }
-        ActiveEffect toEffect(List<Ball> balls){
-            ActiveEffect ae=new ActiveEffect(type, remaining);
-            ae.originalScoreMultiplier=originalScoreMul; ae.originalPaddleWidth=originalPaddleW; ae.originalHasLaser=originalHasLaser;
-            for (var e: speedByBall.entrySet()){ int i=e.getKey(); if(i>=0&&i<balls.size()) ae.originalSpeeds.put(balls.get(i), e.getValue()); }
-            for (var e: radiusByBall.entrySet()){ int i=e.getKey(); if(i>=0&&i<balls.size()) ae.originalRadii.put(balls.get(i), e.getValue()); }
-            for (var e: fireByBall.entrySet()){ int i=e.getKey(); if(i>=0&&i<balls.size()) ae.originalFireball.put(balls.get(i), e.getValue()); }
+
+        ActiveEffect toEffect(List<Ball> balls) {
+            ActiveEffect ae = new ActiveEffect(type, remaining);
+            ae.originalScoreMultiplier = originalScoreMul;
+            ae.originalPaddleWidth = originalPaddleW;
+            ae.originalHasLaser = originalHasLaser;
+            for (var e : speedByBall.entrySet()) {
+                int i = e.getKey();
+                if (i >= 0 && i < balls.size()) ae.originalSpeeds.put(balls.get(i), e.getValue());
+            }
+            for (var e : radiusByBall.entrySet()) {
+                int i = e.getKey();
+                if (i >= 0 && i < balls.size()) ae.originalRadii.put(balls.get(i), e.getValue());
+            }
+            for (var e : fireByBall.entrySet()) {
+                int i = e.getKey();
+                if (i >= 0 && i < balls.size()) ae.originalFireball.put(balls.get(i), e.getValue());
+            }
             return ae;
         }
     }
 
     private static class BossM implements Serializable {
-        boolean present=false; double x,y,w,h,leftBound,rightBound,health,maxHealth; List<BossBulletM> bullets=new ArrayList<>();
-        static BossM from(Boss b){
-            BossM d=new BossM(); if(b==null) return d;
-            d.present=true; d.x=b.getX(); d.y=b.getY(); d.w=b.getWidth(); d.h=b.getHeight();
-            d.leftBound=getDouble(b,"leftBound",100); d.rightBound=getDouble(b,"rightBound",770);
-            d.health=getDouble(b,"health",500); d.maxHealth=getDouble(b,"maxHealth",500);
-            for (BossBullet bb: b.getBullets()) d.bullets.add(BossBulletM.from(bb));
+        boolean present = false;
+        double x, y, w, h, leftBound, rightBound, health, maxHealth;
+        List<BossBulletM> bullets = new ArrayList<>();
+
+        static BossM from(Boss b) {
+            BossM d = new BossM();
+            if (b == null) return d;
+            d.present = true;
+            d.x = b.getX();
+            d.y = b.getY();
+            d.w = b.getWidth();
+            d.h = b.getHeight();
+            d.leftBound = getDouble(b, "leftBound", 100);
+            d.rightBound = getDouble(b, "rightBound", 770);
+            d.health = getDouble(b, "health", 500);
+            d.maxHealth = getDouble(b, "maxHealth", 500);
+            for (BossBullet bb : b.getBullets()) d.bullets.add(BossBulletM.from(bb));
             return d;
         }
-        Boss toBoss(){
-            Boss boss=new Boss(x,y,w,h,leftBound,rightBound);
+
+        Boss toBoss() {
+            Boss boss = new Boss(x, y, w, h, leftBound, rightBound);
             // Khớp HP bằng cách “trừ” chênh lệch (vì Boss không có setter HP)
-            double curMax=getDouble(boss,"maxHealth",maxHealth);
-            double cur   =getDouble(boss,"health",curMax);
-            double delta =cur - health;
-            if (delta>0) boss.takeDamage(delta);
+            double curMax = getDouble(boss, "maxHealth", maxHealth);
+            double cur = getDouble(boss, "health", curMax);
+            double delta = cur - health;
+            if (delta > 0) boss.takeDamage(delta, null, null);
             boss.getBullets().clear();
-            for (BossBulletM bm: bullets) boss.getBullets().add(bm.toBullet());
+            for (BossBulletM bm : bullets) boss.getBullets().add(bm.toBullet());
             return boss;
         }
     }
 
     private static class BossBulletM implements Serializable {
-        double x,y,w,h;
-        static BossBulletM from(BossBullet b){
-            BossBulletM d=new BossBulletM();
-            d.x = b.getX(); d.y = b.getY(); d.w = b.getWidth(); d.h = b.getHeight();
+        double x, y, w, h;
+
+        static BossBulletM from(BossBullet b) {
+            BossBulletM d = new BossBulletM();
+            d.x = b.getX();
+            d.y = b.getY();
+            d.w = b.getWidth();
+            d.h = b.getHeight();
             return d;
         }
-        BossBullet toBullet(){ return new BossBullet(x,y,w,h,300); }
+
+        BossBullet toBullet() {
+            return new BossBullet(x, y, w, h, 300, 10);
+        }
     }
 
     // ===================== Reflection helpers =====================
 
-    private static Object getField(Object target, String name){
-        try { Field f=target.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(target); }
-        catch (Exception e){ return null; }
+    private static Object getField(Object target, String name) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            return f.get(target);
+        } catch (Exception e) {
+            return null;
+        }
     }
-    private static void setField(Object target, String name, Object val){
-        try { Field f=target.getClass().getDeclaredField(name); f.setAccessible(true); f.set(target,val); }
-        catch (Exception ignored) {}
+
+    private static void setField(Object target, String name, Object val) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            f.set(target, val);
+        } catch (Exception ignored) {
+        }
     }
-    private static double getDouble(Object target,String name,double def){
-        try { Field f=target.getClass().getDeclaredField(name); f.setAccessible(true); return f.getDouble(target);}
-        catch(Exception e){ return def; }
+
+    private static double getDouble(Object target, String name, double def) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            return f.getDouble(target);
+        } catch (Exception e) {
+            return def;
+        }
     }
-    private static boolean getBoolean(Object target,String name,boolean def){
-        try { Field f=target.getClass().getDeclaredField(name); f.setAccessible(true); return f.getBoolean(target);}
-        catch(Exception e){ return def; }
+
+    private static boolean getBoolean(Object target, String name, boolean def) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            return f.getBoolean(target);
+        } catch (Exception e) {
+            return def;
+        }
     }
-    private static void setBoolean(Object target,String name,boolean val){
-        try { Field f=target.getClass().getDeclaredField(name); f.setAccessible(true); f.setBoolean(target,val); }
-        catch(Exception ignored){}
+
+    private static void setBoolean(Object target, String name, boolean val) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            f.setBoolean(target, val);
+        } catch (Exception ignored) {
+        }
     }
 }

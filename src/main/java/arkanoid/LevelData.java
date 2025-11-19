@@ -9,5 +9,6 @@ public class LevelData {
     public final List<Brick> bricks = new ArrayList<>();
     public boolean hasBoss = false;
 
-    public LevelData() { }
+    public LevelData() {
+    }
 }

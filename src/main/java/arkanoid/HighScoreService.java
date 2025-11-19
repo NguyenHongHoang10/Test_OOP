@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * HighScoreService
@@ -18,14 +22,18 @@ public final class HighScoreService {
     public static final int MAX_ENTRIES = 10;
     private static final HighScoreService I = new HighScoreService();
 
-    public static HighScoreService get() { return I; }
+    public static HighScoreService get() {
+        return I;
+    }
 
-    private HighScoreService() {}
+    private HighScoreService() {
+    }
 
     public static final class Entry {
         public final String name;
         public final int score;
         public final long ts;
+
         public Entry(String name, int score, long ts) {
             this.name = name;
             this.score = score;
@@ -97,7 +105,9 @@ public final class HighScoreService {
         return readAll().stream().mapToInt(e -> e.score).max().orElse(0);
     }
 
-    /** Đảm bảo cachedBest đã được nạp từ file một lần. */
+    /**
+     * Đảm bảo cachedBest đã được nạp từ file một lần.
+     */
     private void ensureInit() {
         if (!initialized) {
             cachedBest = getBestScore(); // đọc file 1 lần
@@ -105,13 +115,17 @@ public final class HighScoreService {
         }
     }
 
-    /** Trả về highscore đang có trong RAM (đã load trước đó). */
+    /**
+     * Trả về highscore đang có trong RAM (đã load trước đó).
+     */
     public synchronized int getCachedBest() {
         ensureInit();
         return Math.max(0, cachedBest);
     }
 
-    /** Nếu score hiện tại vượt cachedBest thì cập nhật cachedBest (chỉ trong RAM). */
+    /**
+     * Nếu score hiện tại vượt cachedBest thì cập nhật cachedBest (chỉ trong RAM).
+     */
     public synchronized void maybeUpdateBest(int score) {
         ensureInit();
         if (score > cachedBest) cachedBest = score;
@@ -151,7 +165,8 @@ public final class HighScoreService {
                 String name = parts[2];
                 out.add(new Entry(name, score, ts));
             }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         return out;
     }
 
@@ -171,8 +186,21 @@ public final class HighScoreService {
         }
     }
 
-    private int parseInt(String s, int def) { try { return Integer.parseInt(s.trim()); } catch (Exception e) { return def; } }
-    private long parseLong(String s, long def) { try { return Long.parseLong(s.trim()); } catch (Exception e) { return def; } }
+    private int parseInt(String s, int def) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private long parseLong(String s, long def) {
+        try {
+            return Long.parseLong(s.trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
 
     /**
      * Xác định thư mục data giống SaveLoad: ưu tiên src/main/resources/data,
@@ -193,8 +221,12 @@ public final class HighScoreService {
     }
 
     private boolean canCreate(Path dir) {
-        try { Files.createDirectories(dir); return true; }
-        catch (Exception e) { return false; }
+        try {
+            Files.createDirectories(dir);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private Path tryResolveClassesData() {
@@ -204,7 +236,8 @@ public final class HighScoreService {
             if ("file".equals(dataUrl.getProtocol())) {
                 return Paths.get(dataUrl.toURI());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return null;
     }
 }

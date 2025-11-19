@@ -2,15 +2,27 @@ package arkanoid;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
 
-public class LevelSelectPane extends VBox {
+/**
+ * LevelSelectPane đã được viết lại để sử dụng ảnh nền làm bản đồ
+ * và các vùng "hotspot" (trong suốt) để chọn level.
+ */
+public class LevelSelectPane extends StackPane {
 
+    private final double WIDTH = 800;
+    private final double HEIGHT = 600;
+
+    // === BẮT ĐẦU THAY ĐỔI: Cập nhật Constructor ===
     public LevelSelectPane(
             Runnable level1Callback,
             Runnable level2Callback,
@@ -20,74 +32,84 @@ public class LevelSelectPane extends VBox {
             Runnable level6Callback,
             Runnable backCallback
     ) {
-        super(20);
+        // === KẾT THÚC THAY ĐỔI ===
+        setPrefSize(WIDTH, HEIGHT);
 
-        setAlignment(Pos.CENTER);
-        setPadding(new Insets(20));
-        setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
-        setPrefSize(800, 600);
+        // 1. Tải ảnh nền
+        Image bgImage = new Image(getClass().getResourceAsStream("/Image/Background/levelSelectBackground.jpg"));
+        ImageView bgView = new ImageView(bgImage);
+        bgView.setFitWidth(WIDTH);
+        bgView.setFitHeight(HEIGHT);
 
-        // Tiêu đề
-        Text title = new Text("CHOOSE LEVEL");
-        title.setFill(Color.BLACK);
-        title.setFont(Font.font(40));
+        // 2. Tạo Pane để chứa các "vùng nóng" (hotspots)
+        // Dùng Pane cho phép chúng ta đặt tọa độ tuyệt đối (X, Y)
+        Pane hotspotPane = new Pane();
+        hotspotPane.setPrefSize(WIDTH, HEIGHT);
 
-        // Lưới chứa 6 ô level
-        GridPane grid = new GridPane();
-        grid.setHgap(40);
-        grid.setVgap(40);
-        grid.setAlignment(Pos.CENTER);
+        // 3. Tạo các vùng nóng (đã ước lượng tọa độ)
+        // (Bạn có thể cần tinh chỉnh lại tọa độ (x,y) và (w,h) cho khớp)
 
-        Button level1 = createLevelButton("LEVEL 1", level1Callback);
-        Button level2 = createLevelButton("LEVEL 2", level2Callback);
-        Button level3 = createLevelButton("LEVEL 3", level3Callback);
-        Button level4 = createLevelButton("LEVEL 4", level4Callback);
-        Button level5 = createLevelButton("LEVEL 5", level5Callback);
-        Button level6 = createLevelButton("LEVEL 6", level6Callback);
+        // Level 1 (Trái Đất) - Dùng hình tròn (cx, cy, radius)
+        Circle spot1 = new Circle(65, 333, 27);
+        setupHotspot(spot1, 0, level1Callback); // 0 = level 1
 
-        // Nút Level
-        grid.add(level1, 0, 0);
-        grid.add(level2, 1, 0);
-        grid.add(level3, 2, 0);
-        grid.add(level4, 0, 1);
-        grid.add(level5, 1, 1);
-        grid.add(level6, 2, 1);
+        // Level 2 (Thiên thạch) - Dùng hình chữ nhật (x, y, width, height)
+        Rectangle spot2 = new Rectangle(145, 260, 100, 90);
+        setupHotspot(spot2,1, level2Callback); // 1 = level 2
 
-        // Nút Back
+        // Level 3 (Trạm 1)
+        Rectangle spot3 = new Rectangle(265, 260, 145, 75);
+        setupHotspot(spot3, 2, level3Callback);
+
+        // Level 4 (Không có trên ảnh - bỏ qua)
+        // Chúng ta vẫn giữ level4Callback để tránh lỗi, nhưng không tạo hotspot
+
+        // Level 5 (Trạm 2)
+        Rectangle spot5 = new Rectangle(410, 190, 180, 135);
+        setupHotspot(spot5, 4, level5Callback); // Index 4 = Level 5
+
+        // Level 6 (Trùm)
+        Rectangle spot6 = new Rectangle(600, 120, 185, 190);
+        setupHotspot(spot6, 5, level6Callback); // Index 5 = Level 6
+
+        // Thêm các vùng nóng vào Pane
+        hotspotPane.getChildren().addAll(spot1, spot2, spot3, spot5, spot6);
+
+        // 4. Tạo nút "Back"
         Button backBtn = new Button("⬅ Back");
-        backBtn.setFont(Font.font(24));
+        backBtn.setFont(javafx.scene.text.Font.font(24));
         backBtn.setPrefWidth(240);
         backBtn.setOnAction(e -> backCallback.run());
 
-        getChildren().addAll(title, grid, backBtn);
+        // 5. Thêm mọi thứ vào StackPane
+        getChildren().addAll(
+                bgView,      // Lớp dưới cùng: Ảnh nền
+                hotspotPane, // Lớp giữa: Các vùng bấm
+                backBtn      // Lớp trên cùng: Nút Back
+        );
+
+        // Đặt nút Back ở góc dưới bên trái
+        StackPane.setAlignment(backBtn, Pos.BOTTOM_LEFT);
+        StackPane.setMargin(backBtn, new Insets(20));
     }
 
-    private Button createLevelButton(String text, Runnable callback) {
-        Button btn = new Button(text);
-        btn.setFont(Font.font(24));
-        btn.setPrefSize(180, 80);
-        btn.setOnAction(e -> callback.run());
-        btn.setStyle(
-                "-fx-background-color: linear-gradient(#ffffff, #d0d0d0);" +
-                        "-fx-border-color: #333333;" +
-                        "-fx-border-width: 2px;" +
-                        "-fx-border-radius: 10px;" +
-                        "-fx-background-radius: 10px;"
-        );
-        btn.setOnMouseEntered(e -> btn.setStyle(
-                "-fx-background-color: linear-gradient(#a0c4ff, #80b3ff);" +
-                        "-fx-border-color: #333333;" +
-                        "-fx-border-width: 2px;" +
-                        "-fx-border-radius: 10px;" +
-                        "-fx-background-radius: 10px;"
-        ));
-        btn.setOnMouseExited(e -> btn.setStyle(
-                "-fx-background-color: linear-gradient(#ffffff, #d0d0d0);" +
-                        "-fx-border-color: #333333;" +
-                        "-fx-border-width: 2px;" +
-                        "-fx-border-radius: 10px;" +
-                        "-fx-background-radius: 10px;"
-        ));
-        return btn;
+    /**
+     * Hàm trợ giúp để thiết lập hiệu ứng và logic cho một vùng nóng
+     */
+    private void setupHotspot(Shape shape, int levelIndex, Runnable callback) {
+        // Nếu đã mở khóa:
+        shape.setFill(Color.TRANSPARENT); // 1. Bắt đầu trong suốt
+
+        // 2. Hiệu ứng Hover: Hiện highlight
+        shape.setOnMouseEntered(e -> shape.setFill(Color.rgb(255, 255, 255, 0.0))); // 30% trắng
+
+        // 3. Hiệu ứng Thoát Hover: Ẩn highlight
+        shape.setOnMouseExited(e -> shape.setFill(Color.TRANSPARENT));
+
+        // 4. Hành động Click
+        shape.setOnMouseClicked(e -> callback.run());
+
+        // 5. Đổi con trỏ chuột
+        shape.setCursor(Cursor.HAND);
     }
 }

@@ -10,8 +10,8 @@ public class Bullet {
     private boolean alive = true;
 
     public Bullet(double x, double y) {
-        this.x = x - w/2.0;
-        this.y = y - h/2.0;
+        this.x = x - w / 2.0;
+        this.y = y - h / 2.0;
     }
 
     public void update(double dt) {
@@ -26,8 +26,13 @@ public class Bullet {
         gc.strokeRect(x, y, w, h);
     }
 
-    public boolean isAlive() { return alive; }
-    public void kill() { alive = false; }
+    public boolean isAlive() {
+        return alive;
+    }
+
+    public void kill() {
+        alive = false;
+    }
 
     // kiểm tra va chạm AABB với brick
     public boolean collidesWithBrick(Brick b) {

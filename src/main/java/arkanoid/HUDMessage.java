@@ -16,9 +16,13 @@ public class HUDMessage {
         this.life = life;
     }
 
-    void update(double dt) { life -= dt; }
+    void update(double dt) {
+        life -= dt;
+    }
 
-    boolean isAlive() { return life > 0; }
+    boolean isAlive() {
+        return life > 0;
+    }
 
     void render(GraphicsContext gc, double canvasWidth) {
         double alpha = Math.max(0, life / maxLife);

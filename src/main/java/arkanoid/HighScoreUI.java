@@ -1,10 +1,7 @@
 package arkanoid;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -13,7 +10,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import javafx.util.Duration;
+import javafx.scene.image.Image;
 
 import java.util.List;
 
@@ -24,7 +21,8 @@ import java.util.List;
  * - promptNameIfQualified: overlay "Congratulations" nhập tên nếu lọt Top 10
  */
 public final class HighScoreUI {
-    private HighScoreUI() {}
+    private HighScoreUI() {
+    }
 
     /* 1) LeaderBoard Scene (Top 10) */
     public static Scene createLeaderboardScene(double width, double height,
@@ -32,10 +30,39 @@ public final class HighScoreUI {
                                                Runnable onBack) {
         BorderPane root = new BorderPane();
         root.setPrefSize(width, height);
-        root.setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
+        try {
+            // 1. Tải ảnh từ thư mục resources
+            String path = "/Image/Background/leaderboardBackground.jpg";
+            Image bgImage = new Image(HighScoreUI.class.getResourceAsStream(path));
+
+            if (bgImage.isError()) {
+                throw new Exception("Lỗi khi tải ảnh: " + bgImage.getException().getMessage());
+            }
+
+            // 2. Tạo đối tượng BackgroundSize (che phủ 100%)
+            BackgroundSize bgSize = new BackgroundSize(1.0, 1.0, true, true, false, true);
+
+            // 3. Tạo BackgroundImage
+            BackgroundImage backgroundImage = new BackgroundImage(
+                    bgImage,
+                    BackgroundRepeat.NO_REPEAT,
+                    BackgroundRepeat.NO_REPEAT,
+                    BackgroundPosition.CENTER,
+                    bgSize
+            );
+
+            // 4. Đặt nền cho BorderPane (root)
+            root.setBackground(new Background(backgroundImage));
+
+        } catch (Exception e) {
+            System.err.println("Không thể tải ảnh nền leaderboardBackground.jpg. Sử dụng màu nền dự phòng.");
+            e.printStackTrace();
+            // Nếu tải ảnh thất bại, dùng lại màu nền cũ (từ file 18)
+            root.setStyle("-fx-background-color: linear-gradient(#283048, #859398);");
+        }
 
         Text title = new Text("LEADERBOARD");
-        title.setFill(Color.WHITE);
+        title.setFill(Color.BLACK);
         title.setFont(Font.font(36));
         VBox header = new VBox(title);
         header.setAlignment(Pos.CENTER);
@@ -46,10 +73,13 @@ public final class HighScoreUI {
         grid.setHgap(24);
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
-        ColumnConstraints c1 = new ColumnConstraints(); c1.setPercentWidth(15);
-        ColumnConstraints c2 = new ColumnConstraints(); c2.setPercentWidth(55);
-        ColumnConstraints c3 = new ColumnConstraints(); c3.setPercentWidth(30);
-        grid.getColumnConstraints().addAll(c1,c2,c3);
+        ColumnConstraints c1 = new ColumnConstraints();
+        c1.setPercentWidth(15);
+        ColumnConstraints c2 = new ColumnConstraints();
+        c2.setPercentWidth(55);
+        ColumnConstraints c3 = new ColumnConstraints();
+        c3.setPercentWidth(30);
+        grid.getColumnConstraints().addAll(c1, c2, c3);
 
         Label hRank = boldLabel("#");
         Label hName = boldLabel("Name");
@@ -68,7 +98,9 @@ public final class HighScoreUI {
 
         Button back = new Button("⟵ Back");
         back.setFont(Font.font(16));
-        back.setOnAction(ev -> { if (onBack != null) onBack.run(); });
+        back.setOnAction(ev -> {
+            if (onBack != null) onBack.run();
+        });
         BorderPane.setAlignment(back, Pos.BOTTOM_LEFT);
         BorderPane.setMargin(back, new Insets(10));
         root.setBottom(back);
@@ -78,13 +110,14 @@ public final class HighScoreUI {
 
     private static Label boldLabel(String s) {
         Label l = new Label(s);
-        l.setTextFill(Color.WHITE);
+        l.setTextFill(Color.BLACK);
         l.setFont(Font.font(20));
         return l;
     }
+
     private static Label normalLabel(String s) {
         Label l = new Label(s);
-        l.setTextFill(Color.WHITE);
+        l.setTextFill(Color.BLACK);
         l.setFont(Font.font(18));
         return l;
     }

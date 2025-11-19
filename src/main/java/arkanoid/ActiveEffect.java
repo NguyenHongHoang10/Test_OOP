@@ -16,14 +16,21 @@ public class ActiveEffect {
     public boolean originalHasLaser = false;
     public Map<Ball, Boolean> originalFireball = new HashMap<>();
 
-
     ActiveEffect(PowerUp.PowerType type, double duration) {
-        this.type = type; this.remaining = duration;
+        this.type = type;
+        this.remaining = duration;
     }
 
     void update(double dt) {
         remaining -= dt;
     }
 
-    boolean isExpired() { return remaining <= 0; }
+    public void setRemaining(double remaining) {
+        this.remaining = remaining;
+    }
+
+    boolean isExpired() {
+        return remaining <= 0;
+    }
+
 }

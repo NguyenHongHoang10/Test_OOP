@@ -1,0 +1,5 @@
+arkanoid\GameStateScoreTest.class
+arkanoid\BulletBrickCollisionTest.class
+arkanoid\FxTestLauncher.class
+arkanoid\FxTestLauncher$HeadlessApp.class
+arkanoid\BallBrickCollisionTest.class

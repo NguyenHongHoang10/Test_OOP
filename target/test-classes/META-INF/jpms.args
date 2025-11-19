@@ -1,0 +1,4 @@
+--patch-module
+arkanoid=_
+--add-reads
+arkanoid=ALL-UNNAMED
